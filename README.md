@@ -8,7 +8,7 @@
   
 [![GitHub Stars](https://img.shields.io/github/stars/ZiYang-xie/WorldGen?style=social&label=Star&maxAge=2592000)](https://github.com/ZiYang-xie/WorldGen/stargazers/)
 ![Badge](https://img.shields.io/badge/version-v0.1.0-blue)
-![Badge](https://img.shields.io/badge/license-MIT-green)
+![Badge](https://img.shields.io/badge/license-Apache--2.0-green)
 
 </div>
 
@@ -16,12 +16,13 @@
 > Feel free to contact me for any questions or collaborations!
 
 ## 🌟 Introduction
-🌏 **WorldGen** can generate 3D scenes in seconds from text prompts and images.  It is a powerful tool for creating 3D environments, objects, and scenes for games, simulations, and virtual reality applications.  
-Here are the key features of WorldGen:
+🌏 **WorldGen** can generate 3D scenes in seconds from text prompts and images.  It is a powerful tool for creating 3D environments and scenes for games, simulations, robotics, and virtual reality applications.  
 - ⚡️ **Instant 3D Generation**: Create full 3D scenes from input data in seconds
-- 🧭 **360° Free Exploration**: WorldGen supports free exploration of the generated 3D scene in real-time.
-- 🌈 **Diverse Scenes Support**: WorldGen supports both indoor and outdoor scenes.
+- 🧭 **360° Free Exploration**: WorldGen supports free 360° consistent exploration of the generated 3D scene with loop closure.
+- 🌈 **Diverse Scenes Support**: WorldGen supports both indoor and outdoor scenes, both realistic and unrealistic scenes in any style.
+- 📸 **Flexible Rendering**: WorldGen supports rendering at any resolution with any camera setting and trajectory in real-time.
 
+## Test-to-Scene Generation
 <div align="center">
   <img src="./assets/text2scene/indoor1.gif" alt="demo" width="400"/>  
   <img src="./assets/text2scene/outdoor1.gif" alt="demo" width="400"/>  
@@ -29,6 +30,8 @@ Here are the key features of WorldGen:
   <img src="./assets/text2scene/indoor2.gif" alt="demo" width="400"/>  
   <img src="./assets/text2scene/outdoor2.gif" alt="demo" width="400"/>  
 </div>
+
+## Image-to-Scene Generation
 
 ---
 
@@ -105,9 +108,7 @@ python demo.py -i "path/to/your/image.jpg"
 python demo.py --pano "path/to/your/pano_image.jpg"
 ```
 
-## 📜 License
 
-WorldGen is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## 📚 Citation
 If you find this project useful, please consider citing it as follows:
