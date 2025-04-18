@@ -45,11 +45,11 @@ class ViserServer:
         self.server.scene.enable_default_lights(False)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        self.worldgen = WorldGen(self.device, inpaint_bg=args.inpaint_bg)
+        mode = "t2s" if args.pano_image is not None else "i2s"
+        self.worldgen = WorldGen(mode=mode, inpaint_bg=args.inpaint_bg, device=self.device)
         self.args = args
         self.frames = []
         self.start_camera = None
-        self._initial_predictions = None # Store initial predictions
 
     def add_camera_frustum(
         self,
@@ -76,10 +76,10 @@ class ViserServer:
     def add_gs(self, splat: SplatFile):
         self.scene_gs_handle = self.server.scene.add_gaussian_splats(
             "/scene_gs",
-            centers=splat["centers"],
-            rgbs=splat["rgbs"],
-            opacities=splat["opacities"],
-            covariances=splat["covariances"],
+            centers=splat.centers,
+            rgbs=splat.rgbs,
+            opacities=splat.opacities,
+            covariances=splat.covariances,
         )
 
     def add_original_camera(self):
@@ -245,19 +245,19 @@ class ViserServer:
 
     def generate_world(self):
         if self.args.pano_image is not None:
-            pano_image = Image.open(self.args.pano_image)
+            pano_image = Image.open(self.args.pano_image).convert("RGB")
             splat = self.worldgen._generate_world(pano_image)
         elif self.args.image is not None:
-            image = Image.open(self.args.image)
+            image = Image.open(self.args.image).convert("RGB")
             splat = self.worldgen.generate_world(self.args.prompt, image)
         else:
             splat = self.worldgen.generate_world(self.args.prompt)
         return splat
 
     def set_bg(self, splat: SplatFile):
-        position = np.linalg.norm(splat["centers"], axis=1)
+        position = np.linalg.norm(splat.centers, axis=1)
         indices = np.argsort(position)[-5:]  # Get indices of k largest distances
-        farthest_point_color = splat["rgbs"][indices]
+        farthest_point_color = splat.rgbs[indices]
         farthest_point_color = np.mean(farthest_point_color, axis=0)
         bg_img = np.ones((1, 1, 3)) * farthest_point_color
         self.server.scene.set_background_image(bg_img)
@@ -297,7 +297,7 @@ class ViserServer:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="World Generation Demo with Viser")
-    parser.add_argument("--prompt", "-p", type=str, default="A beautiful landscape with a river and mountains", help="Prompt for world generation")
+    parser.add_argument("--prompt", "-t", type=str, default="", required=True, help="Prompt for world generation")
     parser.add_argument("--image", "-i", type=str, help="Path to input image")
     parser.add_argument("--output_dir", "-o", type=str, default="output", help="Path to output directory")
     parser.add_argument("--pano_image", type=str, default=None, help="Path to input Panorama image")

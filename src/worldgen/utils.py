@@ -2,20 +2,55 @@ import py360convert
 from PIL import Image
 import numpy as np
 import torch
-from typing import TypedDict
-import numpy.typing as npt
+import torch.nn.functional as F
 
-class SplatFile(TypedDict):
-    """Data loaded from an antimatter15-style splat file."""
+from plyfile import PlyData, PlyElement
 
-    centers: npt.NDArray[np.floating]
-    """(N, 3)."""
-    rgbs: npt.NDArray[np.floating]
-    """(N, 3). Range [0, 1]."""
-    opacities: npt.NDArray[np.floating]
-    """(N, 1). Range [0, 1]."""
-    covariances: npt.NDArray[np.floating]
-    """(N, 3, 3)."""
+class SplatFile:
+    def __init__(
+        self,
+        centers: np.ndarray,
+        rgbs: np.ndarray,
+        opacities: np.ndarray,
+        covariances: np.ndarray,
+        rotations: np.ndarray,
+        scales: np.ndarray,
+    ):
+        self.centers = centers
+        self.rgbs = rgbs
+        self.opacities = opacities
+        self.covariances = covariances
+        self.rotations = rotations
+        self.scales = scales
+
+    def save(self, path: str):
+        xyz = self.centers
+        normals = np.zeros_like(xyz)
+        f_dc = self.rgbs 
+        opacities = self.opacities
+        scale = self.scales
+        rotation = self.rotations.reshape(xyz.shape[0], -1)
+
+        attribute_names = ['x', 'y', 'z', 'nx', 'ny', 'nz']
+        for i in range(f_dc.shape[1]):
+            attribute_names.append('f_dc_{}'.format(i))
+        attribute_names.append('opacity')
+        for i in range(scale.shape[1]):
+            attribute_names.append('scale_{}'.format(i))
+        for i in range(rotation.shape[1]):
+            attribute_names.append('rot_{}'.format(i))
+
+        dtype_full = [(name, 'f4') for name in attribute_names]
+        elements = np.empty(xyz.shape[0], dtype=dtype_full)
+        attributes = np.concatenate(
+            (xyz, normals, f_dc, opacities, scale, rotation),
+            axis=1
+        )
+        elements[:] = list(map(tuple, attributes))
+
+        el = PlyElement.describe(elements, 'vertex')
+        PlyData([el]).write(path)
+
 
 def pano_to_cube(pano_img: Image.Image, face_w: int, mode: str = 'bilinear') -> list[Image.Image]:
     """Converts a panoramic PIL Image to a list of 6 cubemap face PIL Images."""
@@ -55,6 +90,8 @@ def convert_rgbd_to_gs(rgb, distance, rays, dis_threshold=0., epsilon=1e-3) -> S
         covariances (N x 3 x 3): 3D Gaussian covariances of splats
         colors (N x 3): RGB values of splats
         opacities (N x 1): Opacities of splats
+        scales (N x 3): Scales of splats
+        rotations (N x 4): Rotations of splats
     """
     H, W = rgb.shape[:2]
     device = rgb.device
@@ -100,7 +137,81 @@ def convert_rgbd_to_gs(rgb, distance, rays, dis_threshold=0., epsilon=1e-3) -> S
         covariances=covariances.cpu().numpy(),
         rgbs=colors.cpu().numpy(),
         opacities=opacities.cpu().numpy(),
+        rotations=R.cpu().numpy(),
+        scales=S.cpu().numpy(),
     )
+
+def resize_img_and_rays(img, rays, equi_H, equi_W):
+    """
+    Resize image and rays to match the angular resolution of a target panorama size.
+    
+    Args:
+        img: (H, W, 3) tensor image
+        rays: (H, W, 3) tensor of per-pixel rays
+        equi_H: target panorama height (e.g., 512)
+        equi_W: target panorama width (e.g., 1024)
+        
+    Returns:
+        img_resized: resized image
+        rays_resized: resized rays
+    """
+    H, W = img.shape[:2]
+    device = img.device
+
+    # Estimate input angular coverage
+    h_center = rays[H // 2]
+    v_center = rays[:, W // 2]
+
+    phi_l = torch.atan2(h_center[0, 0], h_center[0, 2])
+    phi_r = torch.atan2(h_center[-1, 0], h_center[-1, 2])
+    horizontal_fov = (phi_r - phi_l).abs()
+
+    theta_t = torch.asin(torch.clamp(v_center[0, 1], -1.0, 1.0))
+    theta_b = torch.asin(torch.clamp(v_center[-1, 1], -1.0, 1.0))
+    vertical_fov = (theta_b - theta_t).abs()
+
+    px_per_rad_h = equi_W / (2 * torch.pi)
+    px_per_rad_v = equi_H / torch.pi
+
+    W_new = int(horizontal_fov * px_per_rad_h)
+    H_new = int(vertical_fov * px_per_rad_v)
+
+    img_resized = F.interpolate(img.permute(2, 0, 1).unsqueeze(0), size=(H_new, W_new), mode='bilinear', align_corners=False)
+    img_resized = img_resized.squeeze(0).permute(1, 2, 0)
+
+    rays_resized = F.interpolate(rays.permute(2, 0, 1).unsqueeze(0), size=(H_new, W_new), mode='bilinear', align_corners=False)
+    rays_resized = F.normalize(rays_resized.squeeze(0).permute(1, 2, 0), dim=-1)
+
+    return img_resized, rays_resized
+
+def map_image_to_pano(predictions: dict, equi_h: int = 720, equi_w: int = 1440) -> tuple[Image.Image, Image.Image]:
+    rays = predictions["rays"]
+    rgb = predictions["rgb"].float()
+    rgb, rays = resize_img_and_rays(rgb, rays, equi_h, equi_w)
+    img_flat = rgb.reshape(-1, 3)
+    rays_flat = rays.reshape(-1, 3)
+    x, y, z = rays_flat[:, 0], rays_flat[:, 1], rays_flat[:, 2]
+
+    phi = torch.atan2(x, z)  # [-π, π]
+    theta = torch.asin(torch.clamp(y, -1.0, 1.0))
+
+    u = (phi / torch.pi + 1) / 2  # [0, 1]
+    v = (theta / torch.pi + 0.5) 
+
+    u_pixel = (u * (equi_w - 1)).long()
+    v_pixel = (v * (equi_h - 1)).long()
+
+    pano = torch.zeros((equi_h, equi_w, 3), dtype=rgb.dtype, device=rgb.device)
+    pano[v_pixel, u_pixel] = img_flat 
+    pano = pano.reshape(equi_h, equi_w, 3)
+    pano = Image.fromarray(pano.cpu().numpy().astype(np.uint8))
+
+    binary_mask = torch.zeros((equi_h, equi_w), dtype=torch.uint8, device=rgb.device)
+    binary_mask[v_pixel, u_pixel] = 255
+    binary_mask = binary_mask.cpu().numpy()
+    binary_mask = Image.fromarray(255-binary_mask.astype(np.uint8)) 
+    return pano, binary_mask
+
 
 def visualize_mask(mask: Image.Image, output_path: str):
     print("Visualizing panoramic mask with different colors...")

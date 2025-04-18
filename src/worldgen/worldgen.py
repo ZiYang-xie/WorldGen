@@ -2,25 +2,33 @@ import torch
 import numpy as np
 import cv2
 from PIL import Image
-from .pano_depth import build_depth_model, pred_pano_depth
+from .pano_depth import build_depth_model, pred_pano_depth, pred_depth
 from .pano_seg import build_segment_model, seg_pano_fg
-from .pano_gen import build_pano_gen_model, gen_pano_image
+from .pano_gen import build_pano_gen_model, gen_pano_image, build_pano_fill_model, gen_pano_fill_image
 from .pano_inpaint import build_inpaint_model, inpaint_pano, inpaint_image
 
-from .utils import convert_rgbd_to_gs, SplatFile
+from .utils import convert_rgbd_to_gs, map_image_to_pano, SplatFile
+from typing import Optional
 
 class WorldGen:
     def __init__(self, 
-            device: torch.device = 'cuda', 
-            inpaint_bg: bool = False
+            mode: str = 't2s',
+            inpaint_bg: bool = False,
+            device: torch.device = 'cuda'
         ):
         self.device = device
         self.depth_model = build_depth_model(device)
+        self.mode = mode
+        if mode == 't2s':
+            self.pano_gen_model = build_pano_gen_model(device)
+        elif mode == 'i2s':
+            self.pano_gen_model = build_pano_fill_model(device)
+        else:
+            raise ValueError(f"Invalid mode: {mode}, mode must be 't2s' or 'i2s'")
 
         self.inpaint_bg = inpaint_bg
         if inpaint_bg:
             self.seg_processor, self.seg_model = build_segment_model(device)
-            self.pano_gen_model = build_pano_gen_model(device)
             self.inpaint_pipe = build_inpaint_model(device)
 
     def depth2gs(self, predictions) -> SplatFile:
@@ -33,30 +41,38 @@ class WorldGen:
     def mask_splat(self, splat: SplatFile, mask: np.ndarray) -> SplatFile:
         H, W = mask.shape
         valid_mask = mask>0
-        centers = splat["centers"]
-        covariances = splat["covariances"]
-        rgbs = splat["rgbs"]
-        opacity = splat["opacities"]
+        centers = splat.centers
+        covariances = splat.covariances
+        rgbs = splat.rgbs
+        opacity = splat.opacities
+        scales = splat.scales
+        rotations = splat.rotations
 
         centers = centers.reshape(H, W, 3)[valid_mask]
         covariances = covariances.reshape(H, W, 3, 3)[valid_mask]
         rgbs = rgbs.reshape(H, W, 3)[valid_mask]
         opacity = opacity.reshape(H, W, 1)[valid_mask]
+        scales = scales.reshape(H, W, 3)[valid_mask]
+        rotations = rotations.reshape(H, W, 4)[valid_mask]
 
         splat = {
             "centers": centers,
             "covariances": covariances,
             "rgbs": rgbs,
-            "opacities": opacity
+            "opacities": opacity,
+            "scales": scales,
+            "rotations": rotations
         }
-        return splat
+        return SplatFile(**splat)
     
     def merge_splats(self, splat1: SplatFile, splat2: SplatFile) -> SplatFile:
         return SplatFile(
-            centers=np.concatenate([splat1["centers"], splat2["centers"]], axis=0),
-            covariances=np.concatenate([splat1["covariances"], splat2["covariances"]], axis=0),
-            rgbs=np.concatenate([splat1["rgbs"], splat2["rgbs"]], axis=0),
-            opacities=np.concatenate([splat1["opacities"], splat2["opacities"]], axis=0)
+            centers=np.concatenate([splat1.centers, splat2.centers], axis=0),
+            covariances=np.concatenate([splat1.covariances, splat2.covariances], axis=0),
+            rgbs=np.concatenate([splat1.rgbs, splat2.rgbs], axis=0),
+            opacities=np.concatenate([splat1.opacities, splat2.opacities], axis=0),
+            scales=np.concatenate([splat1.scales, splat2.scales], axis=0),
+            rotations=np.concatenate([splat1.rotations, splat2.rotations], axis=0)
         )
     
     def depth_match(self, init_pred: dict, bg_pred: dict, mask: np.ndarray) -> dict:
@@ -89,6 +105,20 @@ class WorldGen:
         merged_splat = self.merge_splats(init_splat, occ_bg_splat)
         return merged_splat
     
-    def generate_world(self, text: str, image: Image.Image = None) -> SplatFile:
-        pano_image = gen_pano_image(self.pano_gen_model, text)
-        return self._generate_world(pano_image)
+    def generate_pano(self, prompt: str, image: Optional[Image.Image] = None) -> Image.Image:
+        if self.mode == 't2s':
+            assert image is None, "image is not supported for text-to-scene generation"
+            pano_image = gen_pano_image(self.pano_gen_model, prompt=prompt)
+        elif self.mode == 'i2s':
+            assert image is not None, "image is required for image-to-scene generation"
+            predictions = pred_depth(self.depth_model, image)
+            pano_condition_image, condition_mask = map_image_to_pano(predictions)
+            pano_image = gen_pano_fill_image(self.pano_gen_model, image=pano_condition_image, mask=condition_mask, prompt=prompt)
+        else:
+            raise ValueError(f"Invalid mode: {self.mode}, mode must be 't2s' or 'i2s'")
+        return pano_image
+    
+    def generate_world(self, prompt: str, image: Image.Image) -> SplatFile:
+        pano_image = self.generate_pano(prompt, image)
+        splat = self._generate_world(pano_image)
+        return splat

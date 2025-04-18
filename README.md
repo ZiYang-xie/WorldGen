@@ -41,6 +41,7 @@
 - [x] `04.17.2025` Add support for text-to-3D generation
 - [ ] Add support for image-to-3D generation
 - [ ] Build a project page for WorldGen
+- [ ] Release huggingface demo.
 - [ ] Support better background inpainting (layered depth)
 - [ ] High-resolution 3D scene generation
 
@@ -52,6 +53,10 @@ Getting started with WorldGen is simple!
 # Clone the repository 
 git clone https://github.com/ZiYang-xie/WorldGen.git
 cd WorldGen
+
+# Create a new conda environment
+conda create -n worldgen python=3.10
+conda activate worldgen
 
 # Install dependencies
 pip install -e .
@@ -71,35 +76,36 @@ We support three modes of generation:
 ```python
 # Example using the Python API
 from worldgen import WorldGen
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-worldgen = WorldGen(device)
 
+# mode = "t2s" or "i2s" 
 # Generate a 3D scene from a text prompt
+worldgen = WorldGen(mode="t2s", device=device)
 splat = worldgen.generate_world("A beautiful landscape with a river and mountains")
 
 # Generate a 3D scene from an image
+worldgen = WorldGen(mode="i2s", device=device)
 image = Image.open("path/to/your/image.jpg")
 splat = worldgen.generate_world(
-    image=image, 
-    text="<OPTIONAL: TEXT PROMPT to describe the scene>"
+    prompt="<TEXT PROMPT to describe the image and the scene>",
+    image=image,
 )
 
 # Generate a 3D scene from a panorama image
 pano_image = Image.open("path/to/your/pano_image.jpg")
-splat = worldgen.generate_world(pano_image=pano_image)
+splat = worldgen._generate_world(pano_image=pano_image)
 ```
 
 > [!NOTE]
 > We also support background inpainting in for better scene generation, but it's currently an experimental feature, which may not work for all scenes.  
-> It can be enabled by setting `WorldGen(..., inpaint_bg=True)`.
+> It can be enabled by setting `WorldGen(inpaint_bg=True)`.
 
 
 ### Demo with 3D Scene Visualization
 We provide a demo script to help you quickly get started and visualize the 3D scene in a web browser. The script is powered by [Viser](https://github.com/nerfstudio-project/viser).
 ```bash
 # Generate a 3D scene from a text prompt
-python demo.py -p "A beautiful landscape with a river and mountains"
+python demo.py -t "A beautiful landscape with a river and mountains"
 
 # Generate a 3D scene from an image
 python demo.py -i "path/to/your/image.jpg"
@@ -107,7 +113,6 @@ python demo.py -i "path/to/your/image.jpg"
 # Generate a 3D scene from a panorama image
 python demo.py --pano "path/to/your/pano_image.jpg"
 ```
-
 
 
 ## 📚 Citation
@@ -126,7 +131,7 @@ If you find this project useful, please consider citing it as follows:
 ---
 
 ## 🤝 Acknowledgements
-This project is built on top of the follows:
+This project is built on top of the follows, please consider citing them if you find them useful:
 - [Unik3D](https://github.com/lpiccinelli-eth/UniK3D)
 - [Layerpano3D](https://github.com/3DTopia/LayerPano3D)
 - [Viser](https://github.com/nerfstudio-project/viser)
@@ -134,3 +139,6 @@ This project is built on top of the follows:
 - [OneFormer](https://github.com/SHI-Labs/OneFormer)
 - [LaMa](https://github.com/saic-mdal/lama)
 
+This project is also inspired by the following projects:
+- [WonderWorld](https://github.com/KovenYu/WonderWorld)
+- [Differential Diffusion](https://github.com/exx8/differential-diffusion)

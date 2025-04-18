@@ -32,6 +32,7 @@ dependencies = [
     "einops>=0.6.0",
     "pillow>=8.0.0",
     "safetensors>=0.3.0",
+    "lietorch>=0.6.2",
     "UniK3D @ git+https://github.com/lpiccinelli-eth/UniK3D.git"
 ]
 
