@@ -93,7 +93,7 @@ splat = worldgen.generate_world(
 )
 ```
 
-> [!NOTE]
+> [!Tip]
 > We also support background inpainting in for better scene generation, but it's currently an experimental feature, which may not work for all scenes.  
 > It can be enabled by setting `WorldGen(inpaint_bg=True)`.
 
@@ -111,13 +111,13 @@ python demo.py -i "path/to/your/image.jpg"
 python demo.py --pano "path/to/your/pano_image.jpg"
 ```
 
-> [!Tip]
+> [!Note]
 > 📸 WorldGen internally support generating a 3D scene from a 360° panorama image, which related to how WorldGen works:
 > You can try it out if you happen to have a 360° panorama (equirectangular) image. Aspect ratio of the panorama image should be 2:1.
->```python
-> pano_image = Image.open("path/to/your/pano_image.jpg")
-> splat = worldgen._generate_world(pano_image=pano_image)
->```
+```python
+ pano_image = Image.open("path/to/your/pano_image.jpg")
+ splat = worldgen._generate_world(pano_image=pano_image)
+```
 
 ## 📚 Citation
 If you find this project useful, please consider citing it as follows:
