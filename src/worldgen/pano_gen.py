@@ -50,6 +50,7 @@ def build_pano_gen_model(device="cuda"):
     return pipe
 
 def build_pano_fill_model(device="cuda"):
+    # lora_path = '/home/azureuser/Code/WorldGen/finetune/flux-pano-fill-finetune-lora/pytorch_lora_weights.safetensors'
     lora_path = get_lora_path()
     pipe = FluxFillPipeline.from_pretrained("black-forest-labs/FLUX.1-Fill-dev", torch_dtype=torch.bfloat16, device=device)
     print(f"Loading LoRA weights from: {lora_path}")

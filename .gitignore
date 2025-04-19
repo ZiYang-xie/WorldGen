@@ -41,3 +41,4 @@ output/
 # Testing
 .pytest_cache/
 .coverage
+finetune/

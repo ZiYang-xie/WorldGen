@@ -112,8 +112,12 @@ class WorldGen:
         elif self.mode == 'i2s':
             assert image is not None, "image is required for image-to-scene generation"
             predictions = pred_depth(self.depth_model, image)
-            pano_condition_image, condition_mask = map_image_to_pano(predictions)
-            pano_image = gen_pano_fill_image(self.pano_gen_model, image=pano_condition_image, mask=condition_mask, prompt=prompt)
+            pano_cond_img, cond_mask = map_image_to_pano(predictions, device=self.device)
+            pano_image = gen_pano_fill_image(self.pano_gen_model, image=pano_cond_img, mask=cond_mask, prompt=prompt)
+            # pano_cond_img.save("pano_cond_img.png")
+            # cond_mask.save("cond_mask.png")
+            # pano_image.save("pano_image.png")
+            # import pdb; pdb.set_trace()
         else:
             raise ValueError(f"Invalid mode: {self.mode}, mode must be 't2s' or 'i2s'")
         return pano_image
