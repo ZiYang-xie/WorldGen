@@ -69,10 +69,34 @@ pip install iopaint --no-dependencies
 ## 🎮 Quick Start / Usage
 
 Generate your first 3D scene in seconds, just need a few lines of code.   
-We support three modes of generation:
+We support two modes of generation:
 - 📝 Generate a 3D scene from a text prompt 
 - 🖼️ Generate a 3D scene from an image 
-- 📸 Generate a 3D scene from a panorama image 
+
+### WorldGen API
+Quick start with WorldGen (mode in `t2s` or `i2s`):
+```python
+# Example using the Python API
+from worldgen import WorldGen
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# 📝 Generate a 3D scene from a text prompt
+worldgen = WorldGen(mode="t2s", device=device)
+splat = worldgen.generate_world("A beautiful landscape with a river and mountains")
+
+# 🖼️ Generate a 3D scene from an image
+worldgen = WorldGen(mode="i2s", device=device)
+image = Image.open("path/to/your/image.jpg")
+splat = worldgen.generate_world(
+    prompt="<TEXT PROMPT to describe the image and the scene>",
+    image=image,
+)
+```
+
+> [!NOTE]
+> We also support background inpainting in for better scene generation, but it's currently an experimental feature, which may not work for all scenes.  
+> It can be enabled by setting `WorldGen(inpaint_bg=True)`.
+
 
 ### Demo with 3D Scene Visualization
 We provide a demo script to help you quickly get started and visualize the 3D scene in a web browser. The script is powered by [Viser](https://github.com/nerfstudio-project/viser).
@@ -87,39 +111,13 @@ python demo.py -i "path/to/your/image.jpg"
 python demo.py --pano "path/to/your/pano_image.jpg"
 ```
 
-
-### WorldGen API
-Quick start with text-to-scene generation (mode in `t2s` or `i2s`):
-```python
-# Example using the Python API
-from worldgen import WorldGen
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# Generate a 3D scene from a text prompt
-worldgen = WorldGen(mode="t2s", device=device)
-splat = worldgen.generate_world("A beautiful landscape with a river and mountains")
-```
-
-Generate a 3D scene from an image
-```python
-worldgen = WorldGen(mode="i2s", device=device)
-image = Image.open("path/to/your/image.jpg")
-splat = worldgen.generate_world(
-    prompt="<TEXT PROMPT to describe the image and the scene>",
-    image=image,
-)
-```
-
-We internally support generating a 3D scene from a panorama image:
-```python
-pano_image = Image.open("path/to/your/pano_image.jpg")
-splat = worldgen._generate_world(pano_image=pano_image)
-```
-
-> [!NOTE]
-> We also support background inpainting in for better scene generation, but it's currently an experimental feature, which may not work for all scenes.  
-> It can be enabled by setting `WorldGen(inpaint_bg=True)`.
-
+> [!Tip]
+> 📸 WorldGen internally support generating a 3D scene from a 360° panorama image, which related to how WorldGen works:
+> You can try it out if you happen to have a 360° panorama (equirectangular) image. Aspect ratio of the panorama image should be 2:1.
+>```python
+> pano_image = Image.open("path/to/your/pano_image.jpg")
+> splat = worldgen._generate_world(pano_image=pano_image)
+>```
 
 ## 📚 Citation
 If you find this project useful, please consider citing it as follows:
