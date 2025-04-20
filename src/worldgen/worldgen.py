@@ -5,20 +5,23 @@ from PIL import Image
 from .pano_depth import build_depth_model, pred_pano_depth, pred_depth
 from .pano_seg import build_segment_model, seg_pano_fg
 from .pano_gen import build_pano_gen_model, gen_pano_image, build_pano_fill_model, gen_pano_fill_image
-from .pano_inpaint import build_inpaint_model, inpaint_pano, inpaint_image
+from .pano_inpaint import build_inpaint_model, inpaint_image
+from .utils import convert_rgbd_to_gs, map_image_to_pano, resize_img, SplatFile
 
-from .utils import convert_rgbd_to_gs, map_image_to_pano, SplatFile
 from typing import Optional
 
 class WorldGen:
     def __init__(self, 
-            mode: str = 't2s',
-            inpaint_bg: bool = False,
-            device: torch.device = 'cuda'
+                mode: str = 't2s',
+                inpaint_bg: bool = False,
+                device: torch.device = 'cuda',
+                resolution: int = 1440,
         ):
         self.device = device
         self.depth_model = build_depth_model(device)
         self.mode = mode
+        self.resolution = resolution
+
         if mode == 't2s':
             self.pano_gen_model = build_pano_gen_model(device)
         elif mode == 'i2s':
@@ -105,24 +108,33 @@ class WorldGen:
         merged_splat = self.merge_splats(init_splat, occ_bg_splat)
         return merged_splat
     
-    def generate_pano(self, prompt: str, image: Optional[Image.Image] = None) -> Image.Image:
+    def generate_pano(self, prompt: str = "", image: Optional[Image.Image] = None) -> Image.Image:
         if self.mode == 't2s':
             assert image is None, "image is not supported for text-to-scene generation"
-            pano_image = gen_pano_image(self.pano_gen_model, prompt=prompt)
+            pano_image = gen_pano_image(self.pano_gen_model, prompt=prompt, height=self.resolution//2, width=self.resolution)
         elif self.mode == 'i2s':
             assert image is not None, "image is required for image-to-scene generation"
+            image = resize_img(image)
             predictions = pred_depth(self.depth_model, image)
-            pano_cond_img, cond_mask = map_image_to_pano(predictions, device=self.device)
-            pano_image = gen_pano_fill_image(self.pano_gen_model, image=pano_cond_img, mask=cond_mask, prompt=prompt)
-            # pano_cond_img.save("pano_cond_img.png")
-            # cond_mask.save("cond_mask.png")
-            # pano_image.save("pano_image.png")
-            # import pdb; pdb.set_trace()
+            pano_cond_img, cond_mask = map_image_to_pano(
+                predictions, 
+                equi_h=self.resolution//2, 
+                equi_w=self.resolution, 
+                device=self.device
+            )
+            pano_image = gen_pano_fill_image(
+                self.pano_gen_model, 
+                image=pano_cond_img, 
+                mask=cond_mask, 
+                prompt=prompt, 
+                height=self.resolution//2, 
+                width=self.resolution
+            )
         else:
             raise ValueError(f"Invalid mode: {self.mode}, mode must be 't2s' or 'i2s'")
         return pano_image
     
-    def generate_world(self, prompt: str, image: Image.Image) -> SplatFile:
+    def generate_world(self, prompt: str = "", image: Optional[Image.Image] = None) -> SplatFile:
         pano_image = self.generate_pano(prompt, image)
         splat = self._generate_world(pano_image)
         return splat

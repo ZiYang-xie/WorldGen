@@ -3,8 +3,8 @@ from PIL import Image
 import numpy as np
 import torch
 import torch.nn.functional as F
-
 from plyfile import PlyData, PlyElement
+from skimage import measure, draw
 
 class SplatFile:
     def __init__(
@@ -141,6 +141,14 @@ def convert_rgbd_to_gs(rgb, distance, rays, dis_threshold=0., epsilon=1e-3) -> S
         scales=S.cpu().numpy(),
     )
 
+def resize_img(img: Image.Image, max_size=1024):
+    W, H = img.size
+    if H > W:
+        img = img.resize((max_size, H * max_size // W))
+    else:
+        img = img.resize((W * max_size // H, max_size))
+    return img
+
 def resize_img_and_rays(img, rays, equi_H, equi_W):
     """
     Resize image and rays to match the angular resolution of a target panorama size.
@@ -211,24 +219,28 @@ def batch_nearest_dot(src_dirs, query_dirs, batch=8192):
         idx.append(sim.argmax(dim=1))
     return torch.cat(idx, dim=0)    
 
-def auto_threshold(rays_src: torch.Tensor, margin_deg: float = 5.0):
-    rays = F.normalize(rays_src.reshape(-1, 3), dim=1)
-    centre = F.normalize(rays.mean(dim=0, keepdim=True), dim=1)
-    cos_to_centre = (rays @ centre.t()).squeeze()          # (N,)
-    cos_min = cos_to_centre.min().item()                   # worst‑case pixel
-    cos_margin = np.cos(np.deg2rad(margin_deg))
-    return max(min(cos_min / cos_margin, 0.999), -0.999)   # clamp inside [-1,1]
+def fill_mask_from_contour(mask):
+    mask_np = mask.squeeze(0).cpu().numpy().astype(np.uint8)
+    contours = measure.find_contours(mask_np, fully_connected="high")
+    filled = np.zeros_like(mask_np, dtype=np.uint8)
+    for contour in contours:
+        rr, cc = draw.polygon(contour[:, 0], contour[:, 1], filled.shape)
+        filled[rr, cc] = 1
+
+    return torch.from_numpy(filled)
 
 def map_image_to_pano(predictions: dict,
                     equi_h: int = 720,
                     equi_w: int = 1440,
+                    map_h: int = 1024,
+                    map_w: int = 2048,
                     nn_batch: int = 8192,
-                    margin_deg: float = 70.0,
+                    margin_deg: float = 0,
                     device: torch.device = 'cuda'):
     rays_src = predictions["rays"]          
     rgb_src  = predictions["rgb"].float()  
 
-    rgb_src, rays_src = resize_img_and_rays(rgb_src, rays_src, equi_h, equi_w)
+    rgb_src, rays_src = resize_img_and_rays(rgb_src, rays_src, map_h, map_w)
     img_flat  = rgb_src.reshape(-1, 3)
     rays_flat = rays_src.reshape(-1, 3)
 
@@ -238,34 +250,36 @@ def map_image_to_pano(predictions: dict,
     theta = torch.asin(torch.clamp(y, -1.0, 1.0))
     u = (phi / torch.pi + 1) / 2
     v = (theta / torch.pi + 0.5)
-    u_pix = (u * (equi_w - 1)).long()
-    v_pix = (v * (equi_h - 1)).long()
+    u_pix = (u * (map_w - 1)).long()
+    v_pix = (v * (map_h - 1)).long()
 
-    pano = torch.zeros((equi_h, equi_w, 3),dtype=rgb_src.dtype, device=rgb_src.device)
+    pano = torch.zeros((map_h, map_w, 3),dtype=rgb_src.dtype, device=rgb_src.device)
     pano[v_pix, u_pix] = img_flat
-    hit_mask = torch.zeros((equi_h, equi_w),dtype=torch.bool, device=rgb_src.device)
+    hit_mask = torch.zeros((map_h, map_w),dtype=torch.bool, device=rgb_src.device)
     hit_mask[v_pix, u_pix] = True
 
-    rays_pano = pano_unit_rays(equi_h, equi_w, device)
+    rays_pano = pano_unit_rays(map_h, map_w, device)
     hole_mask = ~hit_mask
     valid_mask = hit_mask
+
+    # fill holes
     if hole_mask.any():
         rays_hole = rays_pano[hole_mask]                       # (Nh,3)
         nn_idx = batch_nearest_dot(rays_flat, rays_hole, nn_batch)  # (Nh,)
-        best_src_dirs = F.normalize(rays_flat[nn_idx], dim=1)
-        rays_hole_norm = F.normalize(rays_hole, dim=1)
-        cos_angle = (best_src_dirs * rays_hole_norm).sum(dim=1)
-
-        accept = cos_angle > auto_threshold(rays_src, margin_deg)                     # (Nh,)
-        if accept.any():
-            colours = img_flat[nn_idx[accept]]
-            hole_idx = hole_mask.nonzero(as_tuple=False)[accept]
-            pano[hole_idx[:, 0], hole_idx[:, 1]] = colours
-            valid_mask[hole_idx[:, 0], hole_idx[:, 1]] = True
+        colours = img_flat[nn_idx]
+        hole_idx = hole_mask.nonzero(as_tuple=False)
+        pano[hole_idx[:, 0], hole_idx[:, 1]] = colours
+    
+    valid_mask = F.max_pool2d(valid_mask.unsqueeze(0).float(), kernel_size=3, stride=1, padding=1).squeeze(0)
+    valid_mask = fill_mask_from_contour(valid_mask).to(device)
+    pano = pano * valid_mask[..., None]
 
     pano_img = Image.fromarray(pano.clamp(0, 255).cpu().numpy().astype(np.uint8))
     invalid_mask = 1 - valid_mask.float()
     invalid_mask_img = Image.fromarray((invalid_mask.cpu().numpy() * 255).astype(np.uint8))
+
+    pano_img = pano_img.resize((equi_w, equi_h))
+    invalid_mask_img = invalid_mask_img.resize((equi_w, equi_h))
     return pano_img, invalid_mask_img
 
 

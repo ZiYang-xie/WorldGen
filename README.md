@@ -39,8 +39,9 @@
 ## News and TODOs
 - [ ] Opensource the WorldGen codebase 🎉
 - [x] `04.17.2025` Add support for text-to-scene generation
-- [ ] Add support for image-to-scene generation
+- [x] `04.19.2025` Add support for image-to-scene generation
 - [ ] Build a project page for WorldGen
+- [ ] Support better img-to-scene generation (e.g., higher resolution, better lora training)
 - [ ] Release huggingface demo.
 - [ ] Support better background inpainting (Invisible region inpainting)
 - [ ] High-resolution 3D scene generation
@@ -65,7 +66,6 @@ pip install -e .
 pip install iopaint --no-dependencies
 ```
 
-
 ## 🎮 Quick Start / Usage
 
 Generate your first 3D scene in seconds, just need a few lines of code.   
@@ -88,8 +88,8 @@ splat = worldgen.generate_world("A beautiful landscape with a river and mountain
 worldgen = WorldGen(mode="i2s", device=device)
 image = Image.open("path/to/your/image.jpg")
 splat = worldgen.generate_world(
-    prompt="<TEXT PROMPT to describe the image and the scene>",
     image=image,
+    prompt="<Optional: TEXT PROMPT to describe the image and the scene>",
 )
 ```
 
@@ -102,14 +102,15 @@ splat = worldgen.generate_world(
 We provide a demo script to help you quickly get started and visualize the 3D scene in a web browser. The script is powered by [Viser](https://github.com/nerfstudio-project/viser).
 ```bash
 # Generate a 3D scene from a text prompt
-python demo.py -t "A beautiful landscape with a river and mountains"
+python demo.py -p "A beautiful landscape with a river and mountains"
 
 # Generate a 3D scene from an image
 python demo.py -i "path/to/your/image.jpg"
 
-# Generate a 3D scene from a panorama image
-python demo.py --pano "path/to/your/pano_image.jpg"
+# You can also provide a text prompt to describe the image and the scene
+python demo.py -i "path/to/your/image.jpg" -p "<TEXT PROMPT to describe the image and the scene>"
 ```
+After running the demo script, A local viser server will be launched at `http://localhost:8080`, where you can explore the generated 3D scene in real-time.
 
 > [!Note]
 > 📸 WorldGen internally support generating a 3D scene from a 360° panorama image, which related to how WorldGen works:
@@ -122,7 +123,7 @@ python demo.py --pano "path/to/your/pano_image.jpg"
 ## 📚 Citation
 If you find this project useful, please consider citing it as follows:
 ```bibtex
-@misc{worldgen,
+@misc{worldgen2025ziyangxie,
   author = {Ziyang Xie},
   title = {WorldGen: Generate Any 3D Scene in Seconds},
   year = {2025},

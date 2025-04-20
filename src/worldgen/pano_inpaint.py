@@ -36,28 +36,3 @@ def inpaint_pano(model, image: Image.Image, mask: np.ndarray):
     pano_inpainted_image.save("pano_inpainted_image.png")
     return pano_inpainted_image
 
-
-# from diffusers import FluxFillPipeline
-# def build_inpaint_model(device: torch.device = 'cuda'):
-#     pipe = FluxFillPipeline.from_pretrained("black-forest-labs/FLUX.1-Fill-dev", torch_dtype=torch.bfloat16, device=device)
-#     pipe.enable_model_cpu_offload()
-#     pipe.enable_vae_tiling()
-#     return pipe
-
-# @torch.inference_mode()
-# def inpaint_image(pipe, image: Image.Image, mask: np.ndarray, prompt: str = "Background of the image, no objects, plain scene, photorealistic, high quality"):
-#     """Segments instances in a single image using OneFormer and returns a binary mask."""
-#     original_size = image.size
-#     mask = Image.fromarray(mask * 255).convert("RGB")
-#     inpainted_image = pipe(
-#         image=image,
-#         mask_image=mask,
-#         guidance_scale=30,
-#         num_inference_steps=50,
-#         height=original_size[1],
-#         width=original_size[0],
-#         prompt=prompt,
-#         max_sequence_length=512,
-#         generator=torch.Generator("cpu").manual_seed(0)
-#     ).images[0]
-#     return inpainted_image

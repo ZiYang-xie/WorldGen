@@ -45,8 +45,11 @@ class ViserServer:
         self.server.scene.enable_default_lights(False)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        mode = "t2s" if args.pano_image is not None else "i2s"
-        self.worldgen = WorldGen(mode=mode, inpaint_bg=args.inpaint_bg, device=self.device)
+        mode = "t2s" if args.image is None else "i2s"
+        self.worldgen = WorldGen(mode=mode, 
+                                 inpaint_bg=args.inpaint_bg, 
+                                 resolution=args.resolution,
+                                 device=self.device)
         self.args = args
         self.frames = []
         self.start_camera = None
@@ -84,7 +87,7 @@ class ViserServer:
 
     def add_original_camera(self):
         h, w = 1080, 1920
-        fov = np.deg2rad(70)
+        fov = np.deg2rad(90)
         aspect = w / h
         self.original_camera = self.server.scene.add_camera_frustum("original_camera", fov, aspect)
         self.init_h, self.init_w = h, w
@@ -297,9 +300,10 @@ class ViserServer:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="World Generation Demo with Viser")
-    parser.add_argument("--prompt", "-t", type=str, default="", required=True, help="Prompt for world generation")
+    parser.add_argument("--prompt", "-p", type=str, default="", help="Prompt for world generation")
     parser.add_argument("--image", "-i", type=str, help="Path to input image")
     parser.add_argument("--output_dir", "-o", type=str, default="output", help="Path to output directory")
+    parser.add_argument("--resolution", "-r", type=int, default=1600, help="Resolution of the generated world")
     parser.add_argument("--pano_image", type=str, default=None, help="Path to input Panorama image")
     parser.add_argument("--inpaint_bg", action="store_true", help="Whether to inpaint the background")
     args = parser.parse_args()
