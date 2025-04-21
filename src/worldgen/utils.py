@@ -5,6 +5,7 @@ import torch
 import torch.nn.functional as F
 from plyfile import PlyData, PlyElement
 from skimage import measure, draw
+from pytorch3d.transforms import matrix_to_quaternion
 
 class SplatFile:
     def __init__(
@@ -16,20 +17,20 @@ class SplatFile:
         rotations: np.ndarray,
         scales: np.ndarray,
     ):
-        self.centers = centers
-        self.rgbs = rgbs
-        self.opacities = opacities
-        self.covariances = covariances
-        self.rotations = rotations
-        self.scales = scales
+        self.centers = centers # (N, 3)
+        self.rgbs = rgbs # (N, 3)
+        self.opacities = opacities # (N, 1)
+        self.covariances = covariances # (N, 3, 3)
+        self.rotations = rotations # (N, 4) # quaternion wxyz
+        self.scales = scales # (N, 3)
 
     def save(self, path: str):
         xyz = self.centers
         normals = np.zeros_like(xyz)
-        f_dc = self.rgbs 
+        f_dc = (self.rgbs - 0.5) / 0.28209479177387814 # convert to SH coefficients
         opacities = self.opacities
-        scale = self.scales
-        rotation = self.rotations.reshape(xyz.shape[0], -1)
+        scale = np.log(self.scales)
+        rotation = self.rotations
 
         attribute_names = ['x', 'y', 'z', 'nx', 'ny', 'nz']
         for i in range(f_dc.shape[1]):
@@ -131,13 +132,14 @@ def convert_rgbd_to_gs(rgb, distance, rays, dis_threshold=0., epsilon=1e-3) -> S
     covariances = R @ S_matrices @ S_matrices.transpose(1, 2) @ R.transpose(1, 2)
     colors = rgb.view(-1, 3).float() / 255.0
     opacities = torch.ones((centers.shape[0], 1))
+    rotation = matrix_to_quaternion(R)
 
     return SplatFile(
         centers=centers.cpu().numpy(),
         covariances=covariances.cpu().numpy(),
         rgbs=colors.cpu().numpy(),
         opacities=opacities.cpu().numpy(),
-        rotations=R.cpu().numpy(),
+        rotations=rotation.cpu().numpy(),
         scales=S.cpu().numpy(),
     )
 
@@ -230,21 +232,19 @@ def fill_mask_from_contour(mask):
     return torch.from_numpy(filled)
 
 def map_image_to_pano(predictions: dict,
-                    equi_h: int = 720,
-                    equi_w: int = 1440,
+                    crop_center: bool = False,
                     map_h: int = 1024,
                     map_w: int = 2048,
                     nn_batch: int = 8192,
-                    margin_deg: float = 0,
                     device: torch.device = 'cuda'):
     rays_src = predictions["rays"]          
-    rgb_src  = predictions["rgb"].float()  
+    rgb_src  = predictions["rgb"].float()
 
     rgb_src, rays_src = resize_img_and_rays(rgb_src, rays_src, map_h, map_w)
+    H, W = rgb_src.shape[:2]
     img_flat  = rgb_src.reshape(-1, 3)
     rays_flat = rays_src.reshape(-1, 3)
 
-    # forward warp -----------------------------------------------------------
     x, y, z = rays_flat[:, 0], rays_flat[:, 1], rays_flat[:, 2]
     phi   = torch.atan2(x, z)
     theta = torch.asin(torch.clamp(y, -1.0, 1.0))
@@ -270,16 +270,24 @@ def map_image_to_pano(predictions: dict,
         hole_idx = hole_mask.nonzero(as_tuple=False)
         pano[hole_idx[:, 0], hole_idx[:, 1]] = colours
     
-    valid_mask = F.max_pool2d(valid_mask.unsqueeze(0).float(), kernel_size=3, stride=1, padding=1).squeeze(0)
-    valid_mask = fill_mask_from_contour(valid_mask).to(device)
+    # two methods to fill holes
+    if crop_center:
+        # directly crop the center valid region
+        coords = torch.stack((v_pix, u_pix), dim=-1)
+        top_left, bottom_right = coords[0], coords[-1]
+        valid_mask = torch.zeros((map_h, map_w), dtype=torch.bool, device=rgb_src.device)
+        valid_mask[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]] = True
+    else:
+        # fill holes by max pool and contour finding
+        valid_mask = F.max_pool2d(valid_mask.unsqueeze(0).float(), kernel_size=3, stride=1, padding=1).squeeze(0)
+        valid_mask = fill_mask_from_contour(valid_mask).to(device)
+
     pano = pano * valid_mask[..., None]
 
     pano_img = Image.fromarray(pano.clamp(0, 255).cpu().numpy().astype(np.uint8))
     invalid_mask = 1 - valid_mask.float()
     invalid_mask_img = Image.fromarray((invalid_mask.cpu().numpy() * 255).astype(np.uint8))
 
-    pano_img = pano_img.resize((equi_w, equi_h))
-    invalid_mask_img = invalid_mask_img.resize((equi_w, equi_h))
     return pano_img, invalid_mask_img
 
 

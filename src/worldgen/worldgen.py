@@ -7,8 +7,8 @@ from .pano_seg import build_segment_model, seg_pano_fg
 from .pano_gen import build_pano_gen_model, gen_pano_image, build_pano_fill_model, gen_pano_fill_image
 from .pano_inpaint import build_inpaint_model, inpaint_image
 from .utils import convert_rgbd_to_gs, map_image_to_pano, resize_img, SplatFile
-
 from typing import Optional
+
 
 class WorldGen:
     def __init__(self, 
@@ -117,19 +117,22 @@ class WorldGen:
             image = resize_img(image)
             predictions = pred_depth(self.depth_model, image)
             pano_cond_img, cond_mask = map_image_to_pano(
-                predictions, 
-                equi_h=self.resolution//2, 
-                equi_w=self.resolution, 
+                predictions,
                 device=self.device
             )
             pano_image = gen_pano_fill_image(
                 self.pano_gen_model, 
                 image=pano_cond_img, 
-                mask=cond_mask, 
+                mask=cond_mask,
                 prompt=prompt, 
                 height=self.resolution//2, 
                 width=self.resolution
             )
+            map_height, map_width = pano_cond_img.height, pano_cond_img.width
+            pano_image = pano_image.resize((map_width, map_height))
+            pano_cond_img, mask = np.array(pano_cond_img), np.array(cond_mask) / 255.0
+            pano_image = np.array(pano_image) * mask[:,:,None] + pano_cond_img * (1-mask[:,:,None])
+            pano_image = Image.fromarray(pano_image.astype(np.uint8))
         else:
             raise ValueError(f"Invalid mode: {self.mode}, mode must be 't2s' or 'i2s'")
         return pano_image

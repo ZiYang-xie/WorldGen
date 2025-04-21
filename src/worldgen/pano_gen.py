@@ -44,14 +44,13 @@ def build_pano_gen_model(device="cuda"):
     lora_path = get_lora_path()
     pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16, device=device)
     print(f"Loading LoRA weights from: {lora_path}")
-    import pdb; pdb.set_trace()
     pipe.load_lora_weights(lora_path)
     pipe.enable_model_cpu_offload() # Save VRAM
     pipe.enable_vae_tiling()
     return pipe
 
 def build_pano_fill_model(device="cuda"):
-    lora_path = '/home/azureuser/Code/WorldGen/finetune/flux-pano-fill-finetune-lora/checkpoint-1500/pytorch_lora_weights.safetensors'
+    lora_path = "/home/azureuser/Code/WorldGen/checkpoints/flux_pano_fill_lora.safetensors"
     pipe = FluxFillPipeline.from_pretrained("black-forest-labs/FLUX.1-Fill-dev", torch_dtype=torch.bfloat16, device=device)
     print(f"Loading LoRA weights from: {lora_path}")
     pipe.load_lora_weights(lora_path, adapter_name="default")
@@ -106,6 +105,8 @@ def gen_pano_fill_image(
         prefix="A high quality 360 panorama photo of",
         suffix="HDR, RAW, 360 consistent, omnidirectional",
     ):
+    image = image.resize((width, height))
+    mask = mask.resize((width, height))
     generator = torch.Generator("cpu").manual_seed(seed)
     prompt = f"{prefix} {prompt} {suffix}"
     image = model(
