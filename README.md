@@ -30,26 +30,26 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 
 ## Test-to-Scene Generatio
 <div align="center">
-  <img src="./assets/text2scene/indoor1.gif" alt="demo" width="400"/>  
-  <img src="./assets/text2scene/outdoor1.gif" alt="demo" width="400"/>  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/text2scene/indoor1.gif" alt="demo" width="400"/>  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/text2scene/outdoor1.gif" alt="demo" width="400"/>  
   <br>
-  <img src="./assets/text2scene/indoor2.gif" alt="demo" width="400"/>  
-  <img src="./assets/text2scene/outdoor2.gif" alt="demo" width="400"/>  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/text2scene/indoor2.gif" alt="demo" width="400"/>  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/text2scene/outdoor2.gif" alt="demo" width="400"/>  
 </div>
 
 ## Image-to-Scene Generation
 <div align="center">
-  <img src="./assets/img2scene/painting.png" alt="demo" width=300 height=250 style="margin-right: 0.5rem;"/>  
-  <img src="./assets/img2scene/painting.gif" alt="demo" height=250/>  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/painting.png" alt="demo" width=350 height=250 /> 
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/painting.gif" alt="demo" width=450 height=250/>  
   <br>
-  <img src="./assets/img2scene/street.png" alt="demo" width="300" height=250 style="margin-right: 0.5rem;"/>  
-  <img src="./assets/img2scene/street.gif" alt="demo" height=250/>  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/street.png" alt="demo" width="350" height=250 />  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/street.gif" alt="demo" width=450 height=250/>  
 </div>
 
 ## Free-viewpoint Exploration in 3D Scene
 <div align="center" style="margin-bottom: 15px;">
-  <img src="./assets/free_explore/beach-converted.gif" alt="demo" width="400"/>  
-  <img src="./assets/free_explore/indoor-converted.gif" alt="demo" width="400"/>  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/free_explore/beach-converted.gif" alt="demo" width="400"/>  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/free_explore/indoor-converted.gif" alt="demo" width="400"/>  
   <br>
 </div>
 
