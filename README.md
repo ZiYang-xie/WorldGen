@@ -29,11 +29,6 @@ worldgen = WorldGen()
 worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ```
 
-[Recommended] Use our 3D visulizer to generate and explore the scene
-```bash
-python demo.py -p "A beautiful landscape with a river and mountains at sunset"
-```
-
 ## Test-to-Scene Generatio
 <div align="center">
   <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/text2scene/indoor1.gif" alt="demo" width="400"/>  
@@ -130,7 +125,7 @@ pip install iopaint --no-dependencies
 ```
 
 
-## 🕹️ Demo with 3D Scene Visualization
+## 🕹️ [Recommended] Demo with 3D Scene Visualization
 We provide a demo script to help you quickly get started and visualize the 3D scene in a web browser. The script is powered by [Viser](https://github.com/nerfstudio-project/viser).
 ```bash
 # Generate a 3D scene from a text prompt
