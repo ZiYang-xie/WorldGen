@@ -6,38 +6,35 @@ build-backend = "setuptools.build_meta"
 name = "worldgen"
 version = "0.1.0"
 authors = [
-  { name="Ziyang Xie", email="ziyangxie01@gmail.com" }, # <-- Update this
+  { name="Ziyang Xie", email="ziyangxie01@gmail.com" },
 ]
-description = "A package for world generation"
+description = "A package for 3D scene generation 🌏"
 readme = "README.md"
-requires-python = ">=3.10" # Adjust as needed
+requires-python = ">=3.11" 
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License", # Choose your license
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
-# Add dependencies here if any, e.g.:
+
 dependencies = [
-    "torch>=2.2.0",
-    "torchvision>=0.17.0",
+    "torch>=2.6.0",
+    "torchvision>=0.21.0",
     "diffusers>=0.33.1",
-    "xformers>=0.0.29",
+    "xformers>=0.0.29.post3",
     "transformers>=4.48.3",
     "viser==0.2.23",
-    "opencv-python",
-    "xformers>=0.0.24",
-    "huggingface-hub>=0.22.0",
     "py360convert>=0.1.0",
-    "einops>=0.6.0",
+    "einops>=0.7.0",
     "pillow>=8.0.0",
-    "safetensors>=0.3.0",
-    "lietorch>=0.6.2",
     "UniK3D @ git+https://github.com/lpiccinelli-eth/UniK3D.git",
-    "scikit-image"
+    "pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git",
+    "scikit-image>=0.24.0",
+    "sentencepiece>=0.2.0"
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]  # Look for packages in the 'src' directory
+where = ["src"] 
 
 [tool.setuptools.dynamic]
 version = {attr = "worldgen.__version__"} 

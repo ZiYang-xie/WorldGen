@@ -35,7 +35,6 @@
 
 ---
 
-
 ## News and TODOs
 - [ ] Opensource the WorldGen codebase 🎉
 - [x] `04.17.2025` Add support for text-to-scene generation
@@ -56,14 +55,14 @@ git clone https://github.com/ZiYang-xie/WorldGen.git
 cd WorldGen
 
 # Create a new conda environment
-conda create -n worldgen python=3.10
+conda create -n worldgen python=3.11
 conda activate worldgen
 
-# Install dependencies
-pip install -e .
+# Install torch and torchvision
+pip install torch torchvision
 
-# If want to use background inpainting feature, install iopaint
-pip install iopaint --no-dependencies
+# Install worldgen
+pip install .
 ```
 
 ## 🎮 Quick Start / Usage
@@ -91,14 +90,21 @@ splat = worldgen.generate_world(
     image=image,
     prompt="<Optional: TEXT PROMPT to describe the image and the scene>",
 )
+
+# Save splat file as a .ply file, which can be load and visualized use standard gaussian splatting viewer
+splat.save("path/to/your/output.ply")
 ```
 
 > [!Tip]
 > We also support background inpainting in for better scene generation, but it's currently an experimental feature, which may not work for all scenes.  
 > It can be enabled by setting `WorldGen(inpaint_bg=True)`.
+```bash
+# If want to use background inpainting feature, install iopaint
+pip install iopaint --no-dependencies
+```
 
 
-### Demo with 3D Scene Visualization
+## 🕹️ Demo with 3D Scene Visualization
 We provide a demo script to help you quickly get started and visualize the 3D scene in a web browser. The script is powered by [Viser](https://github.com/nerfstudio-project/viser).
 ```bash
 # Generate a 3D scene from a text prompt
@@ -113,7 +119,7 @@ python demo.py -i "path/to/your/image.jpg" -p "<TEXT PROMPT to describe the imag
 After running the demo script, A local viser server will be launched at `http://localhost:8080`, where you can explore the generated 3D scene in real-time.
 
 > [!Note]
-> 📸 WorldGen internally support generating a 3D scene from a 360° panorama image, which related to how WorldGen works:
+> **WorldGen** internally support generating a 3D scene from a 360° panorama image 📸, which related to how WorldGen works:
 > You can try it out if you happen to have a 360° panorama (equirectangular) image. Aspect ratio of the panorama image should be 2:1.
 ```python
  pano_image = Image.open("path/to/your/pano_image.jpg")

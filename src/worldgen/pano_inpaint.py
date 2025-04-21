@@ -2,10 +2,10 @@ from PIL import Image
 import cv2
 import torch
 import numpy as np
-from .models.inpaint_model import LaMa
-from .utils import pano_to_cube, cube_to_pano
+from worldgen.utils import pano_to_cube, cube_to_pano
 
 def build_inpaint_model(device: torch.device = 'cuda'):
+    from worldgen.models.inpaint_model import LaMa
     model = LaMa(device=device)
     return model
 
