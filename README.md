@@ -6,7 +6,7 @@
 
 <div align="center">
   
-[![GitHub Stars](https://img.shields.io/github/stars/ZiYang-xie/WorldGen?style=social&label=Star&maxAge=2592000)](https://github.com/ZiYang-xie/WorldGen/stargazers/)
+[![GitHub Stars](https://img.shields.io/github/stars/ZiYang-xie/WorldGen)](https://github.com/ZiYang-xie/WorldGen/stargazers/)
 ![Badge](https://img.shields.io/badge/version-v0.1.0-blue)
 ![Badge](https://img.shields.io/badge/license-Apache--2.0-green)
 
@@ -149,7 +149,7 @@ After running the demo script, A local viser server will be launched at `http://
  splat = worldgen._generate_world(pano_image=pano_image)
 ```
 
-## ⭐️ Star
+## ⭐️ Star History
 Give a star to WorldGen if you like it!
 [![Star History Chart](https://api.star-history.com/svg?repos=ZiYang-xie/WorldGen&type=Date)](https://www.star-history.com/#ZiYang-xie/WorldGen&Date)
 
