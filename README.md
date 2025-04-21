@@ -119,11 +119,13 @@ python demo.py -i "path/to/your/image.jpg" -p "<TEXT PROMPT to describe the imag
 After running the demo script, A local viser server will be launched at `http://localhost:8080`, where you can explore the generated 3D scene in real-time.
 
 ### Free-viewpoint Exploration in 3D Scene
-<div align="center">
+<div align="center" style="margin-bottom: 15px;">
   <img src="./assets/free_explore/beach-converted.gif" alt="demo" width="400"/>  
   <img src="./assets/free_explore/indoor-converted.gif" alt="demo" width="400"/>  
   <br>
 </div>
+
+---
 
 > [!Note]
 > **WorldGen** internally support generating a 3D scene from a 360° panorama image 📸, which related to how WorldGen works:
