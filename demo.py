@@ -267,10 +267,19 @@ class ViserServer:
         self.server.scene.set_background_image(bg_img)
 
     def run(self):
+        print("\033[93m" + "=" * 70 + "\033[0m")
+        print("\033[95m🌍 Generating the world... Please wait 🌍\033[0m")
+        print("\033[93m" + "=" * 70 + "\033[0m")
+
         splat = self.generate_world()
         self.add_gs(splat)
         self.add_original_camera()
         self.set_bg(splat)
+
+        print("\033[92m" + "=" * 70 + "\033[0m")
+        print("\033[95m✨ World successfully generated! ✨\033[0m")
+        print("\033[95mOpen your browser at http://localhost:8080 to view the scene\033[0m")
+        print("\033[92m" + "=" * 70 + "\033[0m")
 
         @self.server.on_client_connect
         def connect(client: viser.ClientHandle) -> None:
@@ -301,7 +310,7 @@ class ViserServer:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="World Generation Demo with Viser")
-    parser.add_argument("--prompt", "-p", type=str, default="", help="Prompt for world generation")
+    parser.add_argument("--prompt", "-p", type=str, help="Prompt for world generation")
     parser.add_argument("--image", "-i", type=str, help="Path to input image")
     parser.add_argument("--output_dir", "-o", type=str, default="output", help="Path to output directory")
     parser.add_argument("--resolution", "-r", type=int, default=1600, help="Resolution of the generated world")

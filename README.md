@@ -19,10 +19,16 @@
 🌏 **WorldGen** can generate 3D scenes in seconds from text prompts and images.  It is a powerful tool for creating 3D environments and scenes for games, simulations, robotics, and virtual reality applications.  
 - **Instant 3D Generation** ⚡️ : Create full 3D scenes from input data in seconds
 - **360° Free Exploration** 🧭 : WorldGen supports free 360° consistent exploration of the generated 3D scene with loop closure.
-- **Diverse Scenes Support** 🌈 : WorldGen supports both indoor and outdoor scenes, both realistic and unrealistic scenes in any style.
+- **Diverse Scenes Support** 🌈 : WorldGen supports bothoor and outdoor scenes, both realistic and unrealistic scenes in any style.
 - **Flexible Rendering** 📸 : WorldGen supports rendering at any resolution with any camera setting and trajectory in real-time.
 
-## Test-to-Scene Generation
+Two lines of code to generate a 3D scene in seconds
+```python
+worldgen = WorldGen()
+worldgen.generate_world("<TEXT PROMPT to describe the scene>")
+```
+
+## Test-to-Scene Generatio
 <div align="center">
   <img src="./assets/text2scene/indoor1.gif" alt="demo" width="400"/>  
   <img src="./assets/text2scene/outdoor1.gif" alt="demo" width="400"/>  
@@ -32,6 +38,20 @@
 </div>
 
 ## Image-to-Scene Generation
+<div align="center">
+  <img src="./assets/img2scene/painting.png" alt="demo" width=300 height=250 style="margin-right: 0.5rem;"/>  
+  <img src="./assets/img2scene/painting.gif" alt="demo" height=250/>  
+  <br>
+  <img src="./assets/img2scene/street.png" alt="demo" width="300" height=250 style="margin-right: 0.5rem;"/>  
+  <img src="./assets/img2scene/street.gif" alt="demo" height=250/>  
+</div>
+
+## Free-viewpoint Exploration in 3D Scene
+<div align="center" style="margin-bottom: 15px;">
+  <img src="./assets/free_explore/beach-converted.gif" alt="demo" width="400"/>  
+  <img src="./assets/free_explore/indoor-converted.gif" alt="demo" width="400"/>  
+  <br>
+</div>
 
 ---
 
@@ -117,13 +137,6 @@ python demo.py -i "path/to/your/image.jpg"
 python demo.py -i "path/to/your/image.jpg" -p "<TEXT PROMPT to describe the image and the scene>"
 ```
 After running the demo script, A local viser server will be launched at `http://localhost:8080`, where you can explore the generated 3D scene in real-time.
-
-### Free-viewpoint Exploration in 3D Scene
-<div align="center" style="margin-bottom: 15px;">
-  <img src="./assets/free_explore/beach-converted.gif" alt="demo" width="400"/>  
-  <img src="./assets/free_explore/indoor-converted.gif" alt="demo" width="400"/>  
-  <br>
-</div>
 
 ---
 

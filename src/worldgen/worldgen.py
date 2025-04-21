@@ -15,8 +15,9 @@ class WorldGen:
     def __init__(self, 
             mode: str = 't2s',
             inpaint_bg: bool = False,
-            device: torch.device = 'cuda',
+            lora_path: str = None,
             resolution: int = 1600,
+            device: torch.device = 'cuda',
         ):
         self.device = device
         self.depth_model = build_depth_model(device)
@@ -24,9 +25,9 @@ class WorldGen:
         self.resolution = resolution
 
         if mode == 't2s':
-            self.pano_gen_model = build_pano_gen_model(device=device)
+            self.pano_gen_model = build_pano_gen_model(lora_path=lora_path, device=device)
         elif mode == 'i2s':
-            self.pano_gen_model = build_pano_fill_model(device=device)
+            self.pano_gen_model = build_pano_fill_model(lora_path=lora_path, device=device)
         else:
             raise ValueError(f"Invalid mode: {mode}, mode must be 't2s' or 'i2s'")
 
@@ -67,7 +68,7 @@ class WorldGen:
             pano_image = gen_pano_image(self.pano_gen_model, prompt=prompt, height=self.resolution//2, width=self.resolution)
         elif self.mode == 'i2s':
             assert image is not None, "image is required for image-to-scene generation"
-            image = resize_img(image)
+            image = resize_img(image) # Limit the longest edge to 1024 to avoid OOM
             predictions = pred_depth(self.depth_model, image)
             pano_cond_img, cond_mask = map_image_to_pano(predictions, device=self.device)
             pano_image = gen_pano_fill_image(
@@ -78,6 +79,8 @@ class WorldGen:
                 height=self.resolution//2, 
                 width=self.resolution
             )
+
+            # Remap original image to pano image with higher resolution
             map_height, map_width = pano_cond_img.height, pano_cond_img.width
             pano_image = pano_image.resize((map_width, map_height))
             pano_cond_img, mask = np.array(pano_cond_img), np.array(cond_mask) / 255.0
@@ -87,6 +90,7 @@ class WorldGen:
             raise ValueError(f"Invalid mode: {self.mode}, mode must be 't2s' or 'i2s'")
         return pano_image
     
+    @torch.inference_mode()
     def generate_world(self, prompt: str = "", image: Optional[Image.Image] = None) -> SplatFile:
         pano_image = self.generate_pano(prompt, image)
         splat = self._generate_world(pano_image)
