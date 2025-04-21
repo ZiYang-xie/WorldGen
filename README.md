@@ -17,10 +17,10 @@
 
 ## 🌟 Introduction
 🌏 **WorldGen** can generate 3D scenes in seconds from text prompts and images.  It is a powerful tool for creating 3D environments and scenes for games, simulations, robotics, and virtual reality applications.  
-- ⚡️ **Instant 3D Generation**: Create full 3D scenes from input data in seconds
-- 🧭 **360° Free Exploration**: WorldGen supports free 360° consistent exploration of the generated 3D scene with loop closure.
-- 🌈 **Diverse Scenes Support**: WorldGen supports both indoor and outdoor scenes, both realistic and unrealistic scenes in any style.
-- 📸 **Flexible Rendering**: WorldGen supports rendering at any resolution with any camera setting and trajectory in real-time.
+- **Instant 3D Generation** ⚡️ : Create full 3D scenes from input data in seconds
+- **360° Free Exploration** 🧭 : WorldGen supports free 360° consistent exploration of the generated 3D scene with loop closure.
+- **Diverse Scenes Support** 🌈 : WorldGen supports both indoor and outdoor scenes, both realistic and unrealistic scenes in any style.
+- **Flexible Rendering** 📸 : WorldGen supports rendering at any resolution with any camera setting and trajectory in real-time.
 
 ## Test-to-Scene Generation
 <div align="center">
@@ -32,6 +32,13 @@
 </div>
 
 ## Image-to-Scene Generation
+
+
+## Free-viewpoint Exploration in 3D Scene
+<div align="center">
+  <img src="./assets/free_explore/beach-converted.gif" alt="demo" width="400"/>  
+  <img src="./assets/free_explore/indoor-converted.gif" alt="demo" width="400"/>  
+</div>
 
 ---
 

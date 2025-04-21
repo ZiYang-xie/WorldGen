@@ -1,3 +1,6 @@
 [submodule "submodules/UniK3D"]
 	path = submodules/UniK3D
 	url = https://github.com/lpiccinelli-eth/UniK3D.git
+[submodule "submodules/pytorch3d"]
+	path = submodules/pytorch3d
+	url = https://github.com/facebookresearch/pytorch3d.git

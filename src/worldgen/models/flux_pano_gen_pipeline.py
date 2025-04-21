@@ -640,10 +640,13 @@ class FluxPipeline(
             )
 
         latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
-        latents = self._pack_latents(latents, batch_size, num_channels_latents, height, width)
-        latent_image_ids = self._prepare_latent_image_ids(batch_size, height // 2, width // 2, device, dtype)
+        latents = torch.cat([latents, latents[:, :, :, :self.blend_extend]], dim=-1)
+        width_new_blended = latents.shape[-1]
 
-        return latents, latent_image_ids
+        latents = self._pack_latents(latents, batch_size, num_channels_latents, height, width_new_blended)
+        latent_image_ids = self._prepare_latent_image_ids(batch_size, height // 2, width_new_blended // 2, device, dtype)
+
+        return latents, latent_image_ids, width_new_blended
 
     @property
     def guidance_scale(self):
@@ -943,7 +946,7 @@ class FluxPipeline(
 
         # 4. Prepare latent variables
         num_channels_latents = self.transformer.config.in_channels // 4
-        latents, latent_image_ids = self.prepare_latents(
+        latents, latent_image_ids, width_new_blended = self.prepare_latents(
             batch_size * num_images_per_prompt,
             num_channels_latents,
             height,
@@ -953,17 +956,7 @@ class FluxPipeline(
             generator,
             latents,
         )
-
-        latents_unpack = self._unpack_latents(latents, height, width, self.vae_scale_factor)
-        latents_unpack = torch.cat([latents_unpack, latents_unpack[:, :, :, :self.blend_extend]], dim=-1)
-        width_new_blended = latents_unpack.shape[-1] * 8
-        latent_image_ids = self._prepare_latent_image_ids(batch_size * num_images_per_prompt, 
-                                                                height // 16, width_new_blended // 16, 
-                                                                latents.device, 
-                                                                latents.dtype)
-        latents = self._pack_latents(latents_unpack, batch_size, num_channels_latents, height // 8, width_new_blended // 8)
-
-
+        width_new_blended = width_new_blended * self.vae_scale_factor
 
 
         # 5. Prepare timesteps
@@ -1069,7 +1062,7 @@ class FluxPipeline(
                 ### ================================== ###                
                 latents_unpack = self._unpack_latents(latents, height, width_new_blended, self.vae_scale_factor)                
                 latents_unpack = self.blend_h(latents_unpack, latents_unpack, self.blend_extend)                
-                latents = self._pack_latents(latents_unpack, batch_size, num_channels_latents, height // 8, width_new_blended // 8)
+                latents = self._pack_latents(latents_unpack, batch_size, num_channels_latents, height // self.vae_scale_factor, width_new_blended // self.vae_scale_factor)
                 ##########################################
                 
                 if latents.dtype != latents_dtype:
@@ -1096,7 +1089,7 @@ class FluxPipeline(
             latents_unpack = self._unpack_latents(latents, height, width_new_blended, self.vae_scale_factor)
             latents_unpack = self.blend_h(latents_unpack, latents_unpack, self.blend_extend)
             latents_unpack = latents_unpack[:, :, :, :width // self.vae_scale_factor]
-            latents = self._pack_latents(latents_unpack, batch_size, num_channels_latents, height // 8, width // 8)
+            latents = self._pack_latents(latents_unpack, batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
 
         if output_type == "latent":
             image = latents

@@ -3,55 +3,7 @@ from PIL import Image
 import numpy as np
 import torch
 import torch.nn.functional as F
-from plyfile import PlyData, PlyElement
 from skimage import measure, draw
-from pytorch3d.transforms import matrix_to_quaternion
-
-class SplatFile:
-    def __init__(
-        self,
-        centers: np.ndarray,
-        rgbs: np.ndarray,
-        opacities: np.ndarray,
-        covariances: np.ndarray,
-        rotations: np.ndarray,
-        scales: np.ndarray,
-    ):
-        self.centers = centers # (N, 3)
-        self.rgbs = rgbs # (N, 3)
-        self.opacities = opacities # (N, 1)
-        self.covariances = covariances # (N, 3, 3)
-        self.rotations = rotations # (N, 4) # quaternion wxyz
-        self.scales = scales # (N, 3)
-
-    def save(self, path: str):
-        xyz = self.centers
-        normals = np.zeros_like(xyz)
-        f_dc = (self.rgbs - 0.5) / 0.28209479177387814 # convert to SH coefficients
-        opacities = self.opacities
-        scale = np.log(self.scales)
-        rotation = self.rotations
-
-        attribute_names = ['x', 'y', 'z', 'nx', 'ny', 'nz']
-        for i in range(f_dc.shape[1]):
-            attribute_names.append('f_dc_{}'.format(i))
-        attribute_names.append('opacity')
-        for i in range(scale.shape[1]):
-            attribute_names.append('scale_{}'.format(i))
-        for i in range(rotation.shape[1]):
-            attribute_names.append('rot_{}'.format(i))
-
-        dtype_full = [(name, 'f4') for name in attribute_names]
-        elements = np.empty(xyz.shape[0], dtype=dtype_full)
-        attributes = np.concatenate(
-            (xyz, normals, f_dc, opacities, scale, rotation),
-            axis=1
-        )
-        elements[:] = list(map(tuple, attributes))
-
-        el = PlyElement.describe(elements, 'vertex')
-        PlyData([el]).write(path)
-
 
 def pano_to_cube(pano_img: Image.Image, face_w: int, mode: str = 'bilinear') -> list[Image.Image]:
     """Converts a panoramic PIL Image to a list of 6 cubemap face PIL Images."""
@@ -75,73 +27,6 @@ def cube_to_pano(cube_faces: list[Image.Image], h: int, w: int, mode: str = 'bil
     pano_pil = Image.fromarray(pano_np.astype(np.uint8))
     return pano_pil
 
-def convert_rgbd_to_gs(rgb, distance, rays, dis_threshold=0., epsilon=1e-3) -> SplatFile:
-    """
-    Given an equirectangular RGB-D image, back-project each pixel to a 3D point
-    and compute the corresponding 3D Gaussian covariance so that the projection covers 1 pixel.
-
-    Parameters:
-        rgb (H x W x 3): RGB image as torch.Tensor, uint8
-        distance (H x W): Distance map (in meters) as torch.Tensor, float32
-        rays (H x W x 3): Ray directions as torch.Tensor, float32
-        epsilon (float): Small Z-scale for the splat in ray direction
-
-    Returns:
-        centers (N x 3): 3D positions of splats
-        covariances (N x 3 x 3): 3D Gaussian covariances of splats
-        colors (N x 3): RGB values of splats
-        opacities (N x 1): Opacities of splats
-        scales (N x 3): Scales of splats
-        rotations (N x 4): Rotations of splats
-    """
-    H, W = rgb.shape[:2]
-    device = rgb.device
-
-    valid_mask = distance > dis_threshold
-    rays_flat = rays.view(-1, 3)
-    distance_flat = distance.view(-1)
-    valid_rays = rays_flat[valid_mask.view(-1)]
-    valid_distance = distance_flat[valid_mask.view(-1)]
-    centers = valid_rays * valid_distance[:, None]
-
-    delta_phi = 2 * torch.pi / W
-    delta_theta = torch.pi / H
-    sigma_x = valid_distance * delta_phi 
-    sigma_y = valid_distance * delta_theta 
-    sigma_z = torch.ones_like(valid_distance) * epsilon
-
-    S = torch.stack([sigma_x, sigma_y, sigma_z], dim=1)
-    covariances = torch.einsum('ni,nj->nij', S, S)  # Sigma = S @ S.T        # (N, 3, 3)
-
-    up = torch.tensor([0, 1, 0], dtype=torch.float32, device=device).expand_as(valid_rays)
-    x_axis = torch.nn.functional.normalize(torch.cross(up, valid_rays), dim=1)
-    fallback_up = torch.tensor([1, 0, 0], dtype=torch.float32, device=device).expand_as(valid_rays)
-    degenerate_mask = torch.isnan(x_axis).any(dim=1)
-    x_axis[degenerate_mask] = torch.nn.functional.normalize(torch.cross(fallback_up[degenerate_mask], valid_rays[degenerate_mask]), dim=1)
-    y_axis = torch.nn.functional.normalize(torch.cross(valid_rays, x_axis), dim=1)
-    z_axis = valid_rays
-
-    R = torch.stack([x_axis, y_axis, z_axis], dim=-1)  # (N, 3, 3)
-
-    # Step 5: apply covariance transformation: Sigma = R S S^T R^T
-    S_matrices = torch.zeros((S.shape[0], 3, 3), device=device)
-    S_matrices[:, 0, 0] = S[:, 0]
-    S_matrices[:, 1, 1] = S[:, 1]
-    S_matrices[:, 2, 2] = S[:, 2]
-
-    covariances = R @ S_matrices @ S_matrices.transpose(1, 2) @ R.transpose(1, 2)
-    colors = rgb.view(-1, 3).float() / 255.0
-    opacities = torch.ones((centers.shape[0], 1))
-    rotation = matrix_to_quaternion(R)
-
-    return SplatFile(
-        centers=centers.cpu().numpy(),
-        covariances=covariances.cpu().numpy(),
-        rgbs=colors.cpu().numpy(),
-        opacities=opacities.cpu().numpy(),
-        rotations=rotation.cpu().numpy(),
-        scales=S.cpu().numpy(),
-    )
 
 def resize_img(img: Image.Image, max_size=1024):
     W, H = img.size
@@ -291,21 +176,13 @@ def map_image_to_pano(predictions: dict,
     return pano_img, invalid_mask_img
 
 
-def visualize_mask(mask: Image.Image, output_path: str):
-    print("Visualizing panoramic mask with different colors...")
-    mask_np = np.array(mask)
-    unique_ids = np.unique(mask_np)
-    unique_ids = unique_ids[unique_ids > 0]  # Remove background (0)
-    
-    # Create a colormap with random colors for each category
-    colormap = np.zeros((np.max(unique_ids) + 1, 3), dtype=np.uint8)
-    np.random.seed(42)  # For reproducible colors
-    for id in unique_ids:
-        colormap[id] = np.random.randint(0, 256, 3)
-    
-    vis_mask = np.zeros((mask_np.shape[0], mask_np.shape[1], 3), dtype=np.uint8)
-    for id in unique_ids:
-        vis_mask[mask_np == id] = colormap[id]
-    
-    Image.fromarray(vis_mask).save(output_path)
-    print(f"Visualization saved to {output_path}")
+def depth_match(init_pred: dict, bg_pred: dict, mask: np.ndarray) -> dict:
+    valid_mask = (mask > 0)
+    init_distance = init_pred["distance"][valid_mask]
+    bg_distance = bg_pred["distance"][valid_mask]
+
+    init_mask = init_distance < torch.quantile(init_distance, 0.3)
+    bg_mask = bg_distance < torch.quantile(bg_distance, 0.3)
+    scale = init_distance[init_mask].median() / bg_distance[bg_mask].median()
+    bg_pred["distance"] *= scale
+    return bg_pred

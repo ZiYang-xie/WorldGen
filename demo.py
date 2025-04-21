@@ -10,7 +10,7 @@ from scipy.spatial.transform import Rotation as R
 from tqdm import tqdm
 import time
 from pathlib import Path
-from worldgen.utils import SplatFile
+from worldgen.utils.splat_utils import SplatFile
 from worldgen import WorldGen
 
 def quaternion_slerp(q1, q2, t):
@@ -249,6 +249,7 @@ class ViserServer:
     def generate_world(self):
         if self.args.pano_image is not None:
             pano_image = Image.open(self.args.pano_image).convert("RGB")
+            pano_image = pano_image.resize((2048, 1024))
             splat = self.worldgen._generate_world(pano_image)
         elif self.args.image is not None:
             image = Image.open(self.args.image).convert("RGB")

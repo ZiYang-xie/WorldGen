@@ -30,7 +30,8 @@ dependencies = [
     "UniK3D @ git+https://github.com/lpiccinelli-eth/UniK3D.git",
     "pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git",
     "scikit-image>=0.24.0",
-    "sentencepiece>=0.2.0"
+    "sentencepiece>=0.2.0",
+    "peft>=0.7.1"
 ]
 
 [tool.setuptools.packages.find]

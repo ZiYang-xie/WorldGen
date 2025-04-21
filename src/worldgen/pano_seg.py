@@ -3,7 +3,7 @@ import torch
 import argparse
 import numpy as np
 from transformers import OneFormerProcessor, OneFormerForUniversalSegmentation
-from .utils import pano_to_cube, cube_to_pano, visualize_mask
+from .utils.general_utils import pano_to_cube, cube_to_pano
 
 def build_segment_model(device: torch.device = 'cuda'):
     processor = OneFormerProcessor.from_pretrained("shi-labs/oneformer_ade20k_swin_large")
@@ -71,28 +71,4 @@ def seg_pano_fg(processor, model, image: Image.Image, depth: torch.Tensor):
     fg_mask = torch.isin(pano_semantic_mask, instance_labels).to(torch.uint8)
     fg_mask = fg_mask.cpu().numpy()
     return fg_mask
-    
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Remove background from an image using OneFormer (supports panorama via cubemap).") # Updated description
-    parser.add_argument("-i", "--input", required=True, help="Path to the input image (panoramic or standard).")
-    parser.add_argument("-o", "--output", default="no_bg_image.png", help="Path to save the output image.")
-
-    args = parser.parse_args()
-
-    #* Build Model
-    print("Building model...")
-    processor = OneFormerProcessor.from_pretrained("shi-labs/oneformer_ade20k_swin_large")
-    model = OneFormerForUniversalSegmentation.from_pretrained("shi-labs/oneformer_ade20k_swin_large")
-    torch.set_float32_matmul_precision(['high', 'highest'][0])
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model.to(device)
-    model.eval()
-
-    #* Segment Panorama
-    print("Segmenting panoramic image...")
-    image = Image.open(args.input).convert("RGB")
-    pano_mask = seg_pano(image, processor, model)
-
-    #* Visualize Segmentation
-    visualize_mask(pano_mask, args.output)
     
