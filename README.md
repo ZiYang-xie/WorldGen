@@ -47,17 +47,10 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
   <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/street.gif" alt="demo" width=350 height=200/>  
 </div>
 
-## Free-viewpoint Exploration in 3D Scene
-<div align="center" style="margin-bottom: 15px;">
-  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/free_explore/beach-converted.gif" alt="demo" width="400"/>  
-  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/free_explore/indoor-converted.gif" alt="demo" width="400"/>  
-  <br>
-</div>
-
 ---
 
 ## News and TODOs
-- [x] Opensource the WorldGen codebase 🎉
+- [x] `04.21.2025` Opensource the WorldGen codebase 🎉
 - [x] `04.17.2025` Add support for text-to-scene generation
 - [x] `04.19.2025` Add support for image-to-scene generation
 - [ ] Build a project page for WorldGen
@@ -125,7 +118,7 @@ pip install iopaint --no-dependencies
 ```
 
 
-## 🕹️ [Recommended] Demo with 3D Scene Visualization
+## 🕹️ Demo with 3D Scene Visualization
 We provide a demo script to help you quickly get started and visualize the 3D scene in a web browser. The script is powered by [Viser](https://github.com/nerfstudio-project/viser).
 ```bash
 # Generate a 3D scene from a text prompt
@@ -139,6 +132,13 @@ python demo.py -i "path/to/your/image.jpg" -p "<TEXT PROMPT to describe the imag
 ```
 After running the demo script, A local viser server will be launched at `http://localhost:8080`, where you can explore the generated 3D scene in real-time.
 
+## Free-viewpoint Exploration in 3D Scene
+<div align="center" style="margin-bottom: 15px;">
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/free_explore/beach-converted.gif" alt="demo" width="400"/>  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/free_explore/indoor-converted.gif" alt="demo" width="400"/>  
+  <br>
+</div>
+
 ---
 
 > [!Note]
@@ -148,6 +148,10 @@ After running the demo script, A local viser server will be launched at `http://
  pano_image = Image.open("path/to/your/pano_image.jpg")
  splat = worldgen._generate_world(pano_image=pano_image)
 ```
+
+## ⭐️ Star
+Give a star to WorldGen if you like it!
+[![Star History Chart](https://api.star-history.com/svg?repos=ZiYang-xie/WorldGen&type=Date)](https://www.star-history.com/#ZiYang-xie/WorldGen&Date)
 
 ## 📚 Citation
 If you find this project useful, please consider citing it as follows:
