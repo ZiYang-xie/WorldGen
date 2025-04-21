@@ -39,11 +39,11 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 
 ## Image-to-Scene Generation
 <div align="center">
-  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/painting.png" alt="demo" width=350 height=250 /> 
-  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/painting.gif" alt="demo" width=450 height=250/>  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/painting.png" alt="demo" width=300 height=200 /> &nbsp;
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/painting.gif" alt="demo" width=350 height=200/>  
   <br>
-  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/street.png" alt="demo" width="350" height=250 />  
-  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/street.gif" alt="demo" width=450 height=250/>  
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/street.png" alt="demo" width="300" height=200 /> &nbsp;
+  <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/img2scene/street.gif" alt="demo" width=350 height=200/>  
 </div>
 
 ## Free-viewpoint Exploration in 3D Scene
