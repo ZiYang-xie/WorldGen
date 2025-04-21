@@ -56,7 +56,7 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ---
 
 ## News and TODOs
-- [ ] Opensource the WorldGen codebase 🎉
+- [x] Opensource the WorldGen codebase 🎉
 - [x] `04.17.2025` Add support for text-to-scene generation
 - [x] `04.19.2025` Add support for image-to-scene generation
 - [ ] Build a project page for WorldGen

@@ -44,6 +44,12 @@ class ViserServer:
         self.server.scene.set_up_direction("-y")
         self.server.scene.enable_default_lights(False)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        if args.inpaint_bg:
+            print("\033[93m" + "!" * 70 + "\033[0m")
+            print("\033[93m⚠️  WARNING: You are using the inpaint_bg experimental feature ⚠️\033[0m")
+            print("\033[93m⚠️  This feature may produce worse results than the default mode ⚠️\033[0m")
+            print("\033[93m" + "!" * 70 + "\033[0m")
         
         mode = "t2s" if args.image is None else "i2s"
         self.worldgen = WorldGen(mode=mode, 
@@ -267,9 +273,9 @@ class ViserServer:
         self.server.scene.set_background_image(bg_img)
 
     def run(self):
-        print("\033[93m" + "=" * 70 + "\033[0m")
+        print("\033[92m" + "=" * 70 + "\033[0m")
         print("\033[95m🌍 Generating the world... Please wait 🌍\033[0m")
-        print("\033[93m" + "=" * 70 + "\033[0m")
+        print("\033[92m" + "=" * 70 + "\033[0m")
 
         splat = self.generate_world()
         self.add_gs(splat)
