@@ -24,8 +24,14 @@
 
 Two lines of code to generate a 3D scene in seconds
 ```python
+# Use our API to generate a 3D scene
 worldgen = WorldGen()
 worldgen.generate_world("<TEXT PROMPT to describe the scene>")
+```
+
+[Recommended] Use our 3D visulizer to generate and explore the scene
+```bash
+python demo.py -p "A beautiful landscape with a river and mountains at sunset"
 ```
 
 ## Test-to-Scene Generatio
@@ -101,7 +107,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # 📝 Generate a 3D scene from a text prompt
 worldgen = WorldGen(mode="t2s", device=device)
-splat = worldgen.generate_world("A beautiful landscape with a river and mountains")
+splat = worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 
 # 🖼️ Generate a 3D scene from an image
 worldgen = WorldGen(mode="i2s", device=device)
