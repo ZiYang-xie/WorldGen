@@ -43,3 +43,4 @@ output/
 .coverage
 finetune/
 test/
+huggingface_ckpt/
