@@ -50,14 +50,15 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ---
 
 ## News and TODOs
+- [x] `04.22.2025` Add support for scene generated in mesh (Should give better results than splat)
 - [x] `04.21.2025` Opensource the WorldGen codebase 🎉
 - [x] `04.17.2025` Add support for text-to-scene generation
 - [x] `04.19.2025` Add support for image-to-scene generation
 - [ ] Build a project page for WorldGen
+- [ ] Release technical report and video
 - [ ] Support better img-to-scene generation (e.g., higher resolution, better lora training)
 - [ ] Release huggingface demo.
 - [ ] Support better background inpainting (Invisible region inpainting)
-- [ ] High-resolution 3D scene generation
 
 ## 📦 Installation
 
@@ -88,25 +89,34 @@ We support two modes of generation:
 
 ### WorldGen API
 Quick start with WorldGen (mode in `t2s` or `i2s`):
+📝 Generate a 3D scene from a text prompt
 ```python
 # Example using the Python API
 from worldgen import WorldGen
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 📝 Generate a 3D scene from a text prompt
 worldgen = WorldGen(mode="t2s", device=device)
 splat = worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 
-# 🖼️ Generate a 3D scene from an image
+# Save splat file as a .ply file, which can be load and visualized use standard gaussian splatting viewer
+splat.save("path/to/your/output.ply")
+```
+
+🖼️ Generate a 3D scene from an image
+```python
 worldgen = WorldGen(mode="i2s", device=device)
 image = Image.open("path/to/your/image.jpg")
 splat = worldgen.generate_world(
     image=image,
     prompt="<Optional: TEXT PROMPT to describe the image and the scene>",
 )
+```
 
-# Save splat file as a .ply file, which can be load and visualized use standard gaussian splatting viewer
-splat.save("path/to/your/output.ply")
+[🔥 **New feature**] Generate a 3D scene in mesh mode
+```python
+mesh = worldgen.generate_world("<TEXT PROMPT to describe the scene>", return_mesh=True)
+# Save mesh as a .ply file
+o3d.io.write_triangle_mesh("path/to/your/output.ply", mesh)
 ```
 
 > [!Tip]
@@ -125,11 +135,15 @@ We provide a demo script to help you quickly get started and visualize the 3D sc
 python demo.py -p "A beautiful landscape with a river and mountains"
 
 # Generate a 3D scene from an image
-python demo.py -i "path/to/your/image.jpg"
+python demo.py -i "path/to/your/image.jpg" -p "<Optional: TEXT PROMPT to describe the scene>"
 
-# You can also provide a text prompt to describe the image and the scene
-python demo.py -i "path/to/your/image.jpg" -p "<TEXT PROMPT to describe the image and the scene>"
+# Generate a 3D scene in mesh mode
+# Make sure you installed my customized viser to correctly visualize the mesh without backface culling
+# It may take a while to load the mesh in viser, if you view it through ssh port forward.
+pip install git+https://github.com/ZiYang-xie/viser.git
+python demo.py -p "A beautiful landscape with a river and mountains" --return_mesh
 ```
+
 After running the demo script, A local viser server will be launched at `http://localhost:8080`, where you can explore the generated 3D scene in real-time.
 
 ### Free-viewpoint Exploration in 3D Scene
@@ -177,6 +191,6 @@ This project is built on top of the follows, please consider citing them if you 
 - [OneFormer](https://github.com/SHI-Labs/OneFormer)
 - [LaMa](https://github.com/saic-mdal/lama)
 
-This project is also inspired by the following projects:
-- [WonderWorld](https://github.com/KovenYu/WonderWorld)
-- [WonderJourney](https://kovenyu.com/wonderjourney/)
+Some of the core methods and ideas in this project are inspired by the following projects, special thanks to them:
+- [WonderWorld](https://github.com/KovenYu/WonderWorld) [Depth to GS conversion]
+- [WorldSheet](https://worldsheet.github.io/) [Mesh Generation]

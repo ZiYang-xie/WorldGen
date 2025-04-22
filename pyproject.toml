@@ -23,15 +23,17 @@ dependencies = [
     "diffusers>=0.33.1",
     "xformers>=0.0.29.post3",
     "transformers>=4.48.3",
-    "viser==0.2.23",
     "py360convert>=0.1.0",
     "einops>=0.7.0",
     "pillow>=8.0.0",
-    "UniK3D @ git+https://github.com/lpiccinelli-eth/UniK3D.git",
-    "pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git",
     "scikit-image>=0.24.0",
     "sentencepiece>=0.2.0",
-    "peft>=0.7.1"
+    "peft>=0.7.1",
+    "open3d>=0.19.0",
+    "trimesh>=4.6.1",
+    "viser @ git+https://github.com/ZiYang-xie/viser.git", # Modified viser to show double-side texture mesh to better view the scene
+    "UniK3D @ git+https://github.com/lpiccinelli-eth/UniK3D.git",
+    "pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git",
 ]
 
 [tool.setuptools.packages.find]

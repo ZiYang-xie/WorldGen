@@ -12,6 +12,8 @@ import time
 from pathlib import Path
 from worldgen.utils.splat_utils import SplatFile
 from worldgen import WorldGen
+import open3d as o3d
+import trimesh
 
 def quaternion_slerp(q1, q2, t):
     """Spherical linear interpolation between quaternions."""
@@ -44,6 +46,12 @@ class ViserServer:
         self.server.scene.set_up_direction("-y")
         self.server.scene.enable_default_lights(False)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.return_mesh = False
+
+        if args.return_mesh:
+            self.mesh = None
+            self.return_mesh = True
+            assert (not args.inpaint_bg), "inpaint_bg is not supported when return_mesh is True"
 
         if args.inpaint_bg:
             print("\033[93m" + "!" * 70 + "\033[0m")
@@ -83,6 +91,8 @@ class ViserServer:
         )
 
     def add_gs(self, splat: SplatFile):
+        if self.args.save_scene:
+            splat.save(os.path.join(self.args.output_dir, "splat.ply"))
         self.scene_gs_handle = self.server.scene.add_gaussian_splats(
             "/scene_gs",
             centers=splat.centers,
@@ -90,6 +100,17 @@ class ViserServer:
             opacities=splat.opacities,
             covariances=splat.covariances,
         )
+    
+    def add_mesh(self, mesh: o3d.geometry.TriangleMesh):
+        if self.args.save_scene:
+            file_path = os.path.join(self.args.output_dir, "mesh.glb")
+            o3d.io.write_triangle_mesh(file_path, mesh)
+        vertices = np.asarray(mesh.vertices)
+        faces = np.asarray(mesh.triangles)
+        colors = np.asarray(mesh.vertex_colors)
+        trimesh_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+        trimesh_mesh.visual.vertex_colors = colors
+        self.scene_mesh_handle = self.server.scene.add_mesh_trimesh(name="/scene_mesh", mesh=trimesh_mesh)
 
     def add_original_camera(self):
         h, w = 1080, 1920
@@ -256,13 +277,13 @@ class ViserServer:
         if self.args.pano_image is not None:
             pano_image = Image.open(self.args.pano_image).convert("RGB")
             pano_image = pano_image.resize((2048, 1024))
-            splat = self.worldgen._generate_world(pano_image)
+            scene = self.worldgen._generate_world(pano_image, return_mesh=self.return_mesh)
         elif self.args.image is not None:
             image = Image.open(self.args.image).convert("RGB")
-            splat = self.worldgen.generate_world(self.args.prompt, image)
+            scene = self.worldgen.generate_world(self.args.prompt, image, return_mesh=self.return_mesh)
         else:
-            splat = self.worldgen.generate_world(self.args.prompt)
-        return splat
+            scene = self.worldgen.generate_world(self.args.prompt, return_mesh=self.return_mesh)
+        return scene
 
     def set_bg(self, splat: SplatFile):
         position = np.linalg.norm(splat.centers, axis=1)
@@ -277,10 +298,13 @@ class ViserServer:
         print("\033[95m🌍 Generating the world... Please wait 🌍\033[0m")
         print("\033[92m" + "=" * 70 + "\033[0m")
 
-        splat = self.generate_world()
-        self.add_gs(splat)
+        scene = self.generate_world()
+        if self.return_mesh:
+            self.add_mesh(scene)
+        else:
+            self.add_gs(scene)
+            self.set_bg(scene)
         self.add_original_camera()
-        self.set_bg(splat)
 
         print("\033[92m" + "=" * 70 + "\033[0m")
         print("\033[95m✨ World successfully generated! ✨\033[0m")
@@ -322,6 +346,8 @@ if __name__ == "__main__":
     parser.add_argument("--resolution", "-r", type=int, default=1600, help="Resolution of the generated world")
     parser.add_argument("--pano_image", type=str, default=None, help="Path to input Panorama image")
     parser.add_argument("--inpaint_bg", action="store_true", help="Whether to inpaint the background")
+    parser.add_argument("--return_mesh", action="store_true", help="Whether to return the mesh")
+    parser.add_argument("--save_scene", action="store_true", help="Whether to save the scene")
     args = parser.parse_args()
 
     server = ViserServer(args)

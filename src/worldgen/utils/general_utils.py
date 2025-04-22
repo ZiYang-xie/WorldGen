@@ -4,6 +4,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from skimage import measure, draw
+from typing import Optional, Literal
+import open3d as o3d
 
 def pano_to_cube(pano_img: Image.Image, face_w: int, mode: str = 'bilinear') -> list[Image.Image]:
     """Converts a panoramic PIL Image to a list of 6 cubemap face PIL Images."""
@@ -175,7 +177,6 @@ def map_image_to_pano(predictions: dict,
 
     return pano_img, invalid_mask_img
 
-
 def depth_match(init_pred: dict, bg_pred: dict, mask: np.ndarray) -> dict:
     valid_mask = (mask > 0)
     init_distance = init_pred["distance"][valid_mask]
@@ -186,3 +187,141 @@ def depth_match(init_pred: dict, bg_pred: dict, mask: np.ndarray) -> dict:
     scale = init_distance[init_mask].median() / bg_distance[bg_mask].median()
     bg_pred["distance"] *= scale
     return bg_pred
+
+def convert_rgbd2mesh_panorama(
+    rgb: torch.Tensor,                       # (H, W, 3) RGB image, values [0, 1]
+    distance: torch.Tensor,                  # (H, W) Distance map
+    rays: torch.Tensor,                      # (H, W, 3) Ray directions (unit vectors ideally)
+    mask: Optional[torch.Tensor] = None,     # (H, W) Optional boolean mask
+    max_size: int = 4096,                    # Max dimension for resizing
+    device: Literal["cuda", "cpu"] = "cuda", # Computation device
+) -> o3d.geometry.TriangleMesh:
+    """
+    Converts panoramic RGBD data (image, distance, rays) into an Open3D mesh.
+
+    Args:
+        image: Input RGB image tensor (H, W, 3), uint8 or float [0, 255].
+        distance: Input distance map tensor (H, W).
+        rays: Input ray directions tensor (H, W, 3). Assumed to originate from (0,0,0).
+        mask: Optional boolean mask tensor (H, W). True values indicate regions to potentially exclude.
+        max_size: Maximum size (height or width) to resize inputs to.
+        device: The torch device ('cuda' or 'cpu') to use for computations.
+
+    Returns:
+        An Open3D TriangleMesh object.
+    """
+    assert rgb.ndim == 3 and rgb.shape[2] == 3, "Image must be HxWx3"
+    assert distance.ndim == 2, "Distance must be HxW"
+    assert rays.ndim == 3 and rays.shape[2] == 3, "Rays must be HxWx3"
+    assert rgb.shape[:2] == distance.shape[:2] == rays.shape[:2], "Input shapes must match"
+    if mask is not None:
+        assert mask.ndim == 2 and mask.shape[:2] == rgb.shape[:2], "Mask shape must match"
+        assert mask.dtype == torch.bool, "Mask must be a boolean tensor"
+
+    rgb = rgb.to(device)
+    distance = distance.to(device)
+    rays = rays.to(device)
+    if mask is not None:
+        mask = mask.to(device)
+
+    H, W = distance.shape
+    if max(H, W) > max_size:
+        scale = max_size / max(H, W)
+    else:
+        scale = 1.0
+
+    rgb_nchw = rgb.permute(2, 0, 1).unsqueeze(0)
+    distance_nchw = distance.unsqueeze(0).unsqueeze(0)
+    rays_nchw = rays.permute(2, 0, 1).unsqueeze(0)
+
+    rgb_resized = F.interpolate(
+        rgb_nchw,
+        scale_factor=scale,
+        mode="bilinear",
+        align_corners=False,
+        recompute_scale_factor=False
+    ).squeeze(0).permute(1, 2, 0)
+
+    distance_resized = F.interpolate(
+        distance_nchw,
+        scale_factor=scale,
+        mode="bilinear",
+        align_corners=False,
+        recompute_scale_factor=False
+    ).squeeze(0).squeeze(0)
+
+    rays_resized_nchw = F.interpolate(
+        rays_nchw,
+        scale_factor=scale,
+        mode="bilinear",
+        align_corners=False,
+        recompute_scale_factor=False
+    )
+    
+    # IMPORTANT: Renormalize ray directions after interpolation
+    rays_resized = rays_resized_nchw.squeeze(0).permute(1, 2, 0)
+    rays_norm = torch.linalg.norm(rays_resized, dim=-1, keepdim=True)
+    rays_resized = rays_resized / (rays_norm + 1e-8)
+
+    if mask is not None:
+        mask_resized = F.interpolate(
+            mask.unsqueeze(0).unsqueeze(0).float(), # Needs float for interpolation
+            scale_factor=scale,
+            mode="bilinear", # Or 'nearest' if sharp boundaries are critical
+            align_corners=False,
+            recompute_scale_factor=False
+        ).squeeze(0).squeeze(0)
+        mask_resized = mask_resized > 0.5 # Convert back to boolean
+    else:
+        mask_resized = None
+
+    H_new, W_new = distance_resized.shape # Get new dimensions
+
+    # --- Calculate 3D Vertices ---
+    # Vertex position = origin + distance * ray_direction
+    # Assuming origin is (0, 0, 0)
+    distance_flat = distance_resized.reshape(-1, 1) # (H*W, 1)
+    rays_flat = rays_resized.reshape(-1, 3)         # (H*W, 3)
+    vertices = distance_flat * rays_flat            # (H*W, 3)
+    vertex_colors = rgb_resized.reshape(-1, 3) # (H*W, 3)
+
+    # --- Generate Mesh Faces (Triangles from Quads) ---
+    row_indices = torch.arange(0, H_new - 1, device=device)
+    col_indices = torch.arange(0, W_new - 1, device=device)
+    row = row_indices.repeat(W_new - 1)
+    col = col_indices.repeat_interleave(H_new - 1)
+
+
+    tl = row * W_new + col      # Top-left
+    tr = tl + 1                 # Top-right
+    bl = tl + W_new             # Bottom-left
+    br = bl + 1                 # Bottom-right
+
+    # Apply mask if provided
+    if mask_resized is not None:
+        mask_tl = mask_resized[row, col]
+        mask_tr = mask_resized[row, col + 1]
+        mask_bl = mask_resized[row + 1, col]
+        mask_br = mask_resized[row + 1, col + 1]
+
+        quad_keep_mask = ~(mask_tl | mask_tr | mask_bl | mask_br)
+
+        keep_indices = quad_keep_mask.nonzero(as_tuple=False).squeeze(-1)
+        tl = tl[keep_indices]
+        tr = tr[keep_indices]
+        bl = bl[keep_indices]
+        br = br[keep_indices]
+
+    # --- Create Triangles ---
+    tri1 = torch.stack([tl, tr, bl], dim=1)
+    tri2 = torch.stack([tr, br, bl], dim=1)
+    faces = torch.cat([tri1, tri2], dim=0) 
+
+    mesh_o3d = o3d.geometry.TriangleMesh()
+    mesh_o3d.vertices = o3d.utility.Vector3dVector(vertices.cpu().numpy())
+    mesh_o3d.triangles = o3d.utility.Vector3iVector(faces.cpu().numpy())
+    mesh_o3d.vertex_colors = o3d.utility.Vector3dVector(vertex_colors.cpu().numpy())
+    mesh_o3d.remove_unreferenced_vertices()
+    mesh_o3d.remove_degenerate_triangles()
+
+    return mesh_o3d

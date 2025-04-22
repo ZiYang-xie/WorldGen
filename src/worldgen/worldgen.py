@@ -2,13 +2,14 @@ import torch
 import numpy as np
 import cv2
 from PIL import Image
+import open3d as o3d
 from .pano_depth import build_depth_model, pred_pano_depth, pred_depth
 from .pano_seg import build_segment_model, seg_pano_fg
 from .pano_gen import build_pano_gen_model, gen_pano_image, build_pano_fill_model, gen_pano_fill_image
 from .pano_inpaint import build_inpaint_model, inpaint_image
 from .utils.splat_utils import convert_rgbd_to_gs, SplatFile, mask_splat, merge_splats
-from .utils.general_utils import map_image_to_pano, resize_img, depth_match
-from typing import Optional
+from .utils.general_utils import map_image_to_pano, resize_img, depth_match, convert_rgbd2mesh_panorama
+from typing import Optional, Union
 
 
 class WorldGen:
@@ -42,13 +43,15 @@ class WorldGen:
         rays = predictions["rays"]
         splat = convert_rgbd_to_gs(rgb, distance, rays)
         return splat
-        
-    def _generate_world(self, pano_image: Image.Image) -> SplatFile:
-        init_pred = pred_pano_depth(self.depth_model, pano_image)
-        init_splat = self.depth2gs(init_pred)
-        if not self.inpaint_bg:
-            return init_splat
-
+    
+    def depth2mesh(self, predictions) -> o3d.geometry.TriangleMesh:
+        rgb = predictions["rgb"] / 255.0
+        distance = predictions["distance"]
+        rays = predictions["rays"]
+        mesh = convert_rgbd2mesh_panorama(rgb, distance, rays)
+        return mesh
+    
+    def inpaint_bg_splat(self, pano_image: Image.Image, init_splat: SplatFile, init_pred: dict) -> SplatFile:
         fg_mask = seg_pano_fg(self.seg_processor, self.seg_model, pano_image, init_pred["distance"])
         edge_mask = cv2.dilate(fg_mask, np.ones((3,3), np.uint8), iterations=1) - cv2.erode(fg_mask, np.ones((3,3), np.uint8), iterations=1)
         init_splat = mask_splat(init_splat, (1-edge_mask))
@@ -61,6 +64,18 @@ class WorldGen:
         occ_bg_splat = mask_splat(pano_bg_splat, dilated_fg_mask)
         merged_splat = merge_splats(init_splat, occ_bg_splat)
         return merged_splat
+    
+    def _generate_world(self, pano_image: Image.Image, return_mesh: bool = False) -> Union[SplatFile, o3d.geometry.TriangleMesh]:
+        init_pred = pred_pano_depth(self.depth_model, pano_image)
+        if return_mesh:
+            mesh = self.depth2mesh(init_pred)
+            return mesh
+
+        splat = self.depth2gs(init_pred)
+        if self.inpaint_bg:
+            splat = self.inpaint_bg_splat(pano_image, splat, init_pred)
+        return splat
+
     
     def generate_pano(self, prompt: str = "", image: Optional[Image.Image] = None) -> Image.Image:
         if self.mode == 't2s':
@@ -91,7 +106,12 @@ class WorldGen:
         return pano_image
     
     @torch.inference_mode()
-    def generate_world(self, prompt: str = "", image: Optional[Image.Image] = None) -> SplatFile:
+    def generate_world(
+        self, 
+        prompt: str = "", 
+        image: Optional[Image.Image] = None, 
+        return_mesh: bool = False
+    ) -> Union[SplatFile, o3d.geometry.TriangleMesh]:
         pano_image = self.generate_pano(prompt, image)
-        splat = self._generate_world(pano_image)
-        return splat
+        scene = self._generate_world(pano_image, return_mesh)
+        return scene
