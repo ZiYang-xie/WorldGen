@@ -105,7 +105,7 @@ splat = worldgen.generate_world(
 )
 ```
 
-- 🔥 **New feature:** Generate a 3D scene in mesh mode
+- 🔥 **New feature:** Generate a 3D scene in mesh
 ```python
 mesh = worldgen.generate_world("<TEXT PROMPT to describe the scene>", return_mesh=True)
 o3d.io.write_triangle_mesh("path/to/your/output.ply", mesh) # Save mesh as a .ply file
@@ -129,10 +129,10 @@ python demo.py -p "A beautiful landscape with a river and mountains"
 # Generate a 3D scene from an image
 python demo.py -i "path/to/your/image.jpg" -p "<Optional: TEXT PROMPT to describe the scene>"
 
-# Generate a 3D scene in mesh mode
+# 🔥 *New feature:* Generate a 3D scene in mesh mode
 # Make sure you installed my customized viser to correctly visualize the mesh without backface culling
+# pip install git+https://github.com/ZiYang-xie/viser.git
 
-pip install git+https://github.com/ZiYang-xie/viser.git
 python demo.py -p "A beautiful landscape with a river and mountains" --return_mesh
 ```
 
