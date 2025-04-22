@@ -50,10 +50,10 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ---
 
 ## News and TODOs
-- [x] `04.22.2025` 🔥 **New feature**: Add support for scene generated in mesh (Should give better results than splat)
-- [x] `04.21.2025` Opensource the WorldGen codebase 🎉
-- [x] `04.17.2025` Add support for text-to-scene generation
-- [x] `04.19.2025` Add support for image-to-scene generation
+- [x] `04.22.2025` 🔥 **New feature**: Add support for mesh scene generation (Should give better results than splat)
+- [x] `04.21.2025` 🎉 Opensource the WorldGen codebase 
+- [x] `04.19.2025` 🖼️ Add support for image-to-scene generation
+- [x] `04.17.2025` 📝 Add support for text-to-scene generation
 - [ ] Build a project page for WorldGen
 - [ ] Release technical report and video
 - [ ] Support better img-to-scene generation (e.g., higher resolution, better lora training)
@@ -83,8 +83,8 @@ pip install .
 ## 🎮 Quick Start / Usage
 
 ### WorldGen API
-Quick start with WorldGen (mode in `t2s` or `i2s`):  
-📝 Generate a 3D scene from a text prompt
+Quick start with WorldGen (mode in `t2s` or `i2s`) and generate your first 3D scene in seconds:  
+- 📝 **Text to Scene:** Generate a 3D scene from a text prompt
 ```python
 # Example using the Python API
 from worldgen import WorldGen
@@ -92,12 +92,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 worldgen = WorldGen(mode="t2s", device=device)
 splat = worldgen.generate_world("<TEXT PROMPT to describe the scene>")
-
-# Save splat file as a .ply file, which can be load and visualized use standard gaussian splatting viewer
-splat.save("path/to/your/output.ply")
+splat.save("path/to/your/output.ply") # Save splat file as a .ply file, which can be load and visualized use standard gaussian splatting viewer
 ```
 
-🖼️ Generate a 3D scene from an image
+- 🖼️ **Image to Scene:** Generate a 3D scene from an image
 ```python
 worldgen = WorldGen(mode="i2s", device=device)
 image = Image.open("path/to/your/image.jpg")
@@ -107,7 +105,7 @@ splat = worldgen.generate_world(
 )
 ```
 
-[🔥 **New feature**] Generate a 3D scene in mesh mode
+- 🔥 **New feature:** Generate a 3D scene in mesh mode
 ```python
 mesh = worldgen.generate_world("<TEXT PROMPT to describe the scene>", return_mesh=True)
 o3d.io.write_triangle_mesh("path/to/your/output.ply", mesh) # Save mesh as a .ply file
@@ -133,7 +131,7 @@ python demo.py -i "path/to/your/image.jpg" -p "<Optional: TEXT PROMPT to describ
 
 # Generate a 3D scene in mesh mode
 # Make sure you installed my customized viser to correctly visualize the mesh without backface culling
-# It may take a while to load the mesh in viser, if you view it through ssh port forward.
+
 pip install git+https://github.com/ZiYang-xie/viser.git
 python demo.py -p "A beautiful landscape with a river and mountains" --return_mesh
 ```
