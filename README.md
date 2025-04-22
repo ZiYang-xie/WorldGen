@@ -50,7 +50,7 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ---
 
 ## News and TODOs
-- [x] `04.22.2025` Add support for scene generated in mesh (Should give better results than splat)
+- [x] `04.22.2025` 🔥 **New feature**: Add support for scene generated in mesh (Should give better results than splat)
 - [x] `04.21.2025` Opensource the WorldGen codebase 🎉
 - [x] `04.17.2025` Add support for text-to-scene generation
 - [x] `04.19.2025` Add support for image-to-scene generation
