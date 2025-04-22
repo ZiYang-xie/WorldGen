@@ -129,7 +129,7 @@ python demo.py -p "A beautiful landscape with a river and mountains"
 # Generate a 3D scene from an image
 python demo.py -i "path/to/your/image.jpg" -p "<Optional: TEXT PROMPT to describe the scene>"
 
-# 🔥 *New feature:* Generate a 3D scene in mesh mode
+# 🔥 New feature: Generate a 3D scene in mesh mode
 # Make sure you installed my customized viser to correctly visualize the mesh without backface culling
 # pip install git+https://github.com/ZiYang-xie/viser.git
 
@@ -184,5 +184,5 @@ This project is built on top of the follows, please consider citing them if you 
 - [LaMa](https://github.com/saic-mdal/lama)
 
 Some of the core methods and ideas in this project are inspired by the following projects, special thanks to them:
-- [WonderWorld](https://github.com/KovenYu/WonderWorld) [Depth to GS conversion]
+- [WonderWorld](https://kovenyu.com/wonderworld/) [RGBD to GS conversion]
 - [WorldSheet](https://worldsheet.github.io/) [Mesh Generation]
