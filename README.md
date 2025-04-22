@@ -7,6 +7,7 @@
 <div align="center">
   
 [![GitHub Stars](https://img.shields.io/github/stars/ZiYang-xie/WorldGen)](https://github.com/ZiYang-xie/WorldGen/stargazers/)
+[![Hugging Face Model](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-blue?style=flat)](https://huggingface.co/LeoXie/WorldGen)
 ![Badge](https://img.shields.io/badge/version-v0.1.0-blue)
 ![Badge](https://img.shields.io/badge/license-Apache--2.0-green)
 
