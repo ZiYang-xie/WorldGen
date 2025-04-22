@@ -82,13 +82,8 @@ pip install .
 
 ## 🎮 Quick Start / Usage
 
-Generate your first 3D scene in seconds, just need a few lines of code.   
-We support two modes of generation:
-- 📝 Generate a 3D scene from a text prompt 
-- 🖼️ Generate a 3D scene from an image 
-
 ### WorldGen API
-Quick start with WorldGen (mode in `t2s` or `i2s`):
+Quick start with WorldGen (mode in `t2s` or `i2s`):  
 📝 Generate a 3D scene from a text prompt
 ```python
 # Example using the Python API
@@ -115,8 +110,7 @@ splat = worldgen.generate_world(
 [🔥 **New feature**] Generate a 3D scene in mesh mode
 ```python
 mesh = worldgen.generate_world("<TEXT PROMPT to describe the scene>", return_mesh=True)
-# Save mesh as a .ply file
-o3d.io.write_triangle_mesh("path/to/your/output.ply", mesh)
+o3d.io.write_triangle_mesh("path/to/your/output.ply", mesh) # Save mesh as a .ply file
 ```
 
 > [!Tip]
