@@ -20,7 +20,7 @@
 🌏 **WorldGen** can generate 3D scenes in seconds from text prompts and images.  It is a powerful tool for creating 3D environments and scenes for games, simulations, robotics, and virtual reality applications.  
 - **Instant 3D Generation** ⚡️ : Create full 3D scenes from input data in seconds
 - **360° Free Exploration** 🧭 : WorldGen supports free 360° consistent exploration of the generated 3D scene with loop closure.
-- **Diverse Scenes Support** 🌈 : WorldGen supports bothoor and outdoor scenes, both realistic and unrealistic scenes in any style.
+- **Diverse Scenes Support** 🌈 : WorldGen supports both indoor and outdoor scenes, both realistic and unrealistic scenes in any style.
 - **Flexible Rendering** 📸 : WorldGen supports rendering at any resolution with any camera setting and trajectory in real-time.
 
 Two lines of code to generate a 3D scene in seconds
@@ -30,7 +30,7 @@ worldgen = WorldGen()
 worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ```
 
-## Test-to-Scene Generatio
+## Text-to-Scene Generation
 <div align="center">
   <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/text2scene/indoor1.gif" alt="demo" width="400"/>  
   <img src="https://github.com/ZiYang-xie/WorldGen/blob/demos/assets/text2scene/outdoor1.gif" alt="demo" width="400"/>  
@@ -93,7 +93,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 worldgen = WorldGen(mode="t2s", device=device)
 splat = worldgen.generate_world("<TEXT PROMPT to describe the scene>")
-splat.save("path/to/your/output.ply") # Save splat file as a .ply file, which can be load and visualized use standard gaussian splatting viewer
+splat.save("path/to/your/output.ply") # Save splat file as a .ply file, which can be loaded and visualized using a standard gaussian splatting viewer
 ```
 
 - 🖼️ **Image to Scene:** Generate a 3D scene from an image
@@ -113,7 +113,7 @@ o3d.io.write_triangle_mesh("path/to/your/output.ply", mesh) # Save mesh as a .pl
 ```
 
 > [!Tip]
-> We also support background inpainting in for better scene generation, but it's currently an experimental feature, which may not work for all scenes.  
+> We also support background inpainting for better scene generation, but it's currently an experimental feature, which may not work for all scenes.  
 > It can be enabled by setting `WorldGen(inpaint_bg=True)`.
 ```bash
 # If want to use background inpainting feature, install iopaint
