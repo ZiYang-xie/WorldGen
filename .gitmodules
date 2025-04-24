@@ -4,6 +4,3 @@
 [submodule "submodules/pytorch3d"]
 	path = submodules/pytorch3d
 	url = https://github.com/facebookresearch/pytorch3d.git
-[submodule "submodules/viser"]
-	path = submodules/viser
-	url = https://github.com/ZiYang-xie/viser.git
