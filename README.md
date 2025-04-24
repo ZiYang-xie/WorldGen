@@ -51,13 +51,14 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ---
 
 ## News and TODOs
+- [ ] `[Working on]` 📄 Build a project page for WorldGen
+- [ ] `[Working on]` 🏃🏻‍♀️ Release a better lora checkpoint.
 - [x] `04.22.2025` 🔥 **New feature**: Add support for mesh scene generation (Should give better results than splat)
 - [x] `04.21.2025` 🎉 Opensource the WorldGen codebase 
 - [x] `04.19.2025` 🖼️ Add support for image-to-scene generation
 - [x] `04.17.2025` 📝 Add support for text-to-scene generation
-- [ ] Build a project page for WorldGen
 - [ ] Release technical report and video
-- [ ] Support better img-to-scene generation (e.g., higher resolution, better lora training)
+- [ ] Support higher resolution generation (e.g., 1080P, currently limited by computational resources)
 - [ ] Release huggingface demo.
 - [ ] Support better background inpainting (Invisible region inpainting)
 
