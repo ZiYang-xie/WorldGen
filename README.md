@@ -5,11 +5,11 @@
 
 
 <div align="center">
-  
-[![GitHub Stars](https://img.shields.io/github/stars/ZiYang-xie/WorldGen)](https://github.com/ZiYang-xie/WorldGen/stargazers/)
+
+[![📄 Project Page](https://img.shields.io/badge/📄-Project_Page-orange)](https://worldgen.github.io/)
 [![Hugging Face Model](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-blue?style=flat)](https://huggingface.co/LeoXie/WorldGen)
-![Badge](https://img.shields.io/badge/version-v0.1.0-blue)
-![Badge](https://img.shields.io/badge/license-Apache--2.0-green)
+![Badge](https://img.shields.io/badge/version-v0.1.0-green)
+[![GitHub Stars](https://img.shields.io/github/stars/ZiYang-xie/WorldGen)](https://github.com/ZiYang-xie/WorldGen/stargazers/)
 
 </div>
 
@@ -51,12 +51,12 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ---
 
 ## News and TODOs
-- [ ] `[Working on]` 📄 Build a project page for WorldGen
-- [ ] `[Working on]` 🏃🏻‍♀️ Release a better lora checkpoint.
-- [x] `04.22.2025` 🔥 **New feature**: Add support for mesh scene generation (Should give better results than splat)
+- [x] `04.26.2025` 📄 **New** Relase a project page for WorldGen
+- [x] `04.22.2025` 🔥 Add support for mesh scene generation (Should give better results than splat)
 - [x] `04.21.2025` 🎉 Opensource the WorldGen codebase 
 - [x] `04.19.2025` 🖼️ Add support for image-to-scene generation
 - [x] `04.17.2025` 📝 Add support for text-to-scene generation
+- [ ] 🏃🏻‍♀️ Release a better lora checkpoint.
 - [ ] Release technical report and video
 - [ ] Support higher resolution generation (e.g., 1080P, currently limited by computational resources)
 - [ ] Release huggingface demo.
