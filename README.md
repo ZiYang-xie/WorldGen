@@ -13,7 +13,8 @@
 
 </div>
 
-> Author 👨‍💻: [Ziyang Xie](https://ziyangxie.site/) | Contact Email 📧: [ziyangxie01@gmail.com](mailto:ziyangxie01@gmail.com)  
+> Author 👨‍💻: [Ziyang Xie](https://ziyangxie.site/) @ [Manifolds-AI](https://www.linkedin.com/company/manifolds-ai/)  
+> Contact Email 📧: [ziyangxie01@gmail.com](mailto:ziyangxie01@gmail.com)  
 > Feel free to contact me for any questions or collaborations!
 
 ## 🌟 Introduction
