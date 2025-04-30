@@ -5,24 +5,86 @@ from pathlib import Path
 from huggingface_hub import hf_hub_download
 from .models.flux_pano_gen_pipeline import FluxPipeline
 from .models.flux_pano_fill_pipeline import FluxFillPipeline
+from nunchaku import NunchakuFluxTransformer2dModel
+from nunchaku.utils import get_precision
+from nunchaku.lora.flux.compose import compose_lora
+from .utils.lora_utils import compose_lora_with_fixes, load_and_fix_lora
 
 
-def build_pano_gen_model(lora_path=None, device="cuda"):
+def build_pano_gen_model(lora_path=None, device="cuda", low_vram=True):
+    """Build a panorama generation model with optional Nunchaku low VRAM support."""
     if lora_path is None:
         lora_path = hf_hub_download(repo_id="LeoXie/WorldGen", filename=f"models--WorldGen-Flux-Lora/worldgen_text2scene.safetensors")
-    pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16, device=device)
-    print(f"Loading LoRA weights from: {lora_path}")
-    pipe.load_lora_weights(lora_path)
+    
+    if low_vram:
+        # Get precision and initialize Nunchaku transformer
+        precision = get_precision()
+        print(f"Using Nunchaku with {precision} precision")
+        transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+            f"mit-han-lab/svdq-{precision}-flux.1-dev",
+            offload=True
+        )
+        # Initialize pipeline with Nunchaku transformer
+        pipe = FluxPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-dev",
+            transformer=transformer,
+            torch_dtype=torch.bfloat16,
+            device=device
+        )
+        # Load and fix LoRA weights
+        print(f"Loading LoRA weights from: {lora_path}")
+        state_dict, _ = load_and_fix_lora(lora_path)
+        transformer.update_lora_params(state_dict)
+    else:
+        # Standard pipeline initialization
+        pipe = FluxPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-dev",
+            torch_dtype=torch.bfloat16,
+            device=device
+        )
+        # Load LoRA weights using standard diffusers method
+        print(f"Loading LoRA weights from: {lora_path}")
+        pipe.load_lora_weights(lora_path)
+    
     pipe.enable_model_cpu_offload() # Save VRAM
     pipe.enable_vae_tiling()
     return pipe
 
-def build_pano_fill_model(lora_path=None, device="cuda"):
+def build_pano_fill_model(lora_path=None, device="cuda", low_vram=True):
+    """Build a panorama fill model with optional Nunchaku low VRAM support."""
     if lora_path is None:
         lora_path = hf_hub_download(repo_id="LeoXie/WorldGen", filename=f"models--WorldGen-Flux-Lora/worldgen_img2scene.safetensors")
-    pipe = FluxFillPipeline.from_pretrained("black-forest-labs/FLUX.1-Fill-dev", torch_dtype=torch.bfloat16, device=device)
-    print(f"Loading LoRA weights from: {lora_path}")
-    pipe.load_lora_weights(lora_path)
+    
+    if low_vram:
+        # Get precision and initialize Nunchaku transformer
+        precision = get_precision()
+        print(f"Using Nunchaku with {precision} precision")
+        transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+            f"mit-han-lab/svdq-{precision}-flux.1-fill-dev",
+            offload=True
+        )
+        # Initialize pipeline with Nunchaku transformer
+        pipe = FluxFillPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-Fill-dev",
+            transformer=transformer,
+            torch_dtype=torch.bfloat16,
+            device=device
+        )
+        # Load and fix LoRA weights
+        print(f"Loading LoRA weights from: {lora_path}")
+        state_dict, _ = load_and_fix_lora(lora_path)
+        transformer.update_lora_params(state_dict)
+    else:
+        # Standard pipeline initialization
+        pipe = FluxFillPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-Fill-dev",
+            torch_dtype=torch.bfloat16,
+            device=device
+        )
+        # Load LoRA weights using standard diffusers method
+        print(f"Loading LoRA weights from: {lora_path}")
+        pipe.load_lora_weights(lora_path)
+    
     pipe.enable_model_cpu_offload() # Save VRAM
     pipe.enable_vae_tiling()
     return pipe

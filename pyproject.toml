@@ -18,10 +18,10 @@ classifiers = [
 ]
 
 dependencies = [
-    "torch>=2.6.0",
-    "torchvision>=0.21.0",
+    "torch>=2.7.0",
+    "torchvision>=0.22.0",
     "diffusers>=0.33.1",
-    "xformers>=0.0.29.post3",
+    "xformers>=0.0.30",
     "transformers>=4.48.3",
     "py360convert>=0.1.0",
     "einops>=0.7.0",
@@ -31,9 +31,10 @@ dependencies = [
     "peft>=0.7.1",
     "open3d>=0.19.0",
     "trimesh>=4.6.1",
+    "nunchaku>=0.1.0",
     "viser @ git+https://github.com/ZiYang-xie/viser.git", # Modified viser to show double-side texture mesh to better view the scene
     "UniK3D @ git+https://github.com/lpiccinelli-eth/UniK3D.git",
-    "pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git",
+    "pytorch3d @ git+https://github.com/eamonn-zh/pytorch3d.git",
 ]
 
 [tool.setuptools.packages.find]

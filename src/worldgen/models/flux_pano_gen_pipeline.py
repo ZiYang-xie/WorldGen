@@ -54,6 +54,7 @@ from diffusers import DiffusionPipeline
 from diffusers.pipelines.flux import FluxPipelineOutput
 import torch.nn.functional as F
 from einops import rearrange
+from worldgen.utils.lora_utils import load_and_fix_lora
 
 try:
     from diffusers.models.autoencoders.vae import DecoderOutput
@@ -1108,3 +1109,18 @@ class FluxPipeline(
             return (image,)
 
         return FluxPipelineOutput(images=image)
+
+    def load_lora_weights(self, pretrained_model_name_or_path_or_dict: Union[str, Dict[str, torch.Tensor]], **kwargs):
+        """Load LoRA weights into the pipeline."""
+        try:
+            # Patch lora for potential nunchaku conversion (ensure all keys are present)
+            state_dict, weight = load_and_fix_lora(pretrained_model_name_or_path_or_dict)
+            
+            # Apply the LoRA to the transformer
+            self.transformer.update_lora_params(state_dict)
+            
+            logger.info("Successfully loaded and applied LoRA weights")
+            return True
+        except Exception as e:
+            logger.error(f"Error loading LoRA weights: {str(e)}")
+            raise
