@@ -63,7 +63,8 @@ class ViserServer:
         self.worldgen = WorldGen(mode=mode, 
                                  inpaint_bg=args.inpaint_bg, 
                                  resolution=args.resolution,
-                                 device=self.device)
+                                 device=self.device,
+                                 low_vram=args.low_vram)
         self.args = args
         self.frames = []
         self.start_camera = None
@@ -348,7 +349,12 @@ if __name__ == "__main__":
     parser.add_argument("--inpaint_bg", action="store_true", help="Whether to inpaint the background")
     parser.add_argument("--return_mesh", action="store_true", help="Whether to return the mesh")
     parser.add_argument("--save_scene", action="store_true", help="Whether to save the scene")
+    parser.add_argument("--low_vram", action="store_true", help="Whether to use low VRAM")
     args = parser.parse_args()
+
+    if torch.cuda.get_device_properties(0).total_memory / (1024 ** 3) < 24:
+        print("Detected GPU VRAM less than 24GB, setting low_vram to True")
+        args.low_vram = True
 
     server = ViserServer(args)
     server.run()

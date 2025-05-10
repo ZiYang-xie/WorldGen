@@ -52,8 +52,9 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ---
 
 ## News and TODOs
+- [x] `05.10.2025` 🔥 Add support for low-vram generation (Only use ~10GB VRAM for generation).
 - [x] `04.26.2025` 📄 **New** Relase a project page for WorldGen
-- [x] `04.22.2025` 🔥 Add support for mesh scene generation (Should give better results than splat)
+- [x] `04.22.2025` 🏡 Add support for mesh scene generation (Should give better results than splat)
 - [x] `04.21.2025` 🎉 Opensource the WorldGen codebase 
 - [x] `04.19.2025` 🖼️ Add support for image-to-scene generation
 - [x] `04.17.2025` 📝 Add support for text-to-scene generation
@@ -76,8 +77,9 @@ cd WorldGen
 conda create -n worldgen python=3.11
 conda activate worldgen
 
-# Install torch and torchvision
-pip install torch torchvision
+# Install torch and torchvision (with GPU support)
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+
 
 # Install worldgen
 pip install .
@@ -93,14 +95,14 @@ Quick start with WorldGen (mode in `t2s` or `i2s`) and generate your first 3D sc
 from worldgen import WorldGen
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-worldgen = WorldGen(mode="t2s", device=device)
+worldgen = WorldGen(mode="t2s", device=device, low_vram=False) # Set low_vram to True if your GPU VRAM is less than 24GB.
 splat = worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 splat.save("path/to/your/output.ply") # Save splat file as a .ply file, which can be loaded and visualized using a standard gaussian splatting viewer
 ```
 
 - 🖼️ **Image to Scene:** Generate a 3D scene from an image
 ```python
-worldgen = WorldGen(mode="i2s", device=device)
+worldgen = WorldGen(mode="i2s", device=device, low_vram=False) # Set low_vram to True if your GPU VRAM is less than 24GB.
 image = Image.open("path/to/your/image.jpg")
 splat = worldgen.generate_world(
     image=image,
@@ -108,7 +110,7 @@ splat = worldgen.generate_world(
 )
 ```
 
-- 🔥 **New feature:** Generate a 3D scene in mesh
+- 🏡 Generate a 3D scene in mesh mode
 ```python
 mesh = worldgen.generate_world("<TEXT PROMPT to describe the scene>", return_mesh=True)
 o3d.io.write_triangle_mesh("path/to/your/output.ply", mesh) # Save mesh as a .ply file

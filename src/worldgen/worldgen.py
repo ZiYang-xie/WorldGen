@@ -19,16 +19,24 @@ class WorldGen:
             lora_path: str = None,
             resolution: int = 1600,
             device: torch.device = 'cuda',
+            low_vram: Optional[bool] = None,
         ):
         self.device = device
         self.depth_model = build_depth_model(device)
         self.mode = mode
         self.resolution = resolution
 
+        # Set low_vram based on available VRAM if not specified
+        if low_vram is None:
+            total_vram = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+            low_vram = total_vram < 24
+            print(f"Detected {total_vram:.1f}GB VRAM, {'enabling' if low_vram else 'disabling'} low VRAM mode")
+        self.low_vram = low_vram
+
         if mode == 't2s':
-            self.pano_gen_model = build_pano_gen_model(lora_path=lora_path, device=device)
+            self.pano_gen_model = build_pano_gen_model(lora_path=lora_path, device=device, low_vram=low_vram)
         elif mode == 'i2s':
-            self.pano_gen_model = build_pano_fill_model(lora_path=lora_path, device=device)
+            self.pano_gen_model = build_pano_fill_model(lora_path=lora_path, device=device, low_vram=low_vram)
         else:
             raise ValueError(f"Invalid mode: {mode}, mode must be 't2s' or 'i2s'")
 
