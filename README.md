@@ -80,12 +80,38 @@ conda activate worldgen
 # Install torch and torchvision (with GPU support)
 pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 
-
 # Install worldgen
 pip install .
+
+# Install pytorch3d dependencies
+pip install git+https://github.com/facebookresearch/pytorch3d.git --no-build-isolation
+
+# You should also accept the license of the gated model (FLUX.1-dev).
+# https://huggingface.co/black-forest-labs/FLUX.1-dev
+# Login to Hugging Face and accept the license.
+# huggingface-cli login
 ```
 
-## 🎮 Quick Start / Usage
+## 🕹️ Quick Start / Demos
+We provide a demo script to help you quickly get started and visualize the 3D scene in a web browser. The script is powered by [Viser](https://github.com/nerfstudio-project/viser).
+```bash
+# Generate a 3D scene from a text prompt
+python demo.py -p "A beautiful landscape with a river and mountains"
+
+# Generate a 3D scene from an image
+python demo.py -i "path/to/your/image.jpg" -p "<Optional: TEXT PROMPT to describe the scene>"
+
+# 🔥 New feature: Generate a 3D scene in mesh mode
+# Make sure you installed my customized viser to correctly visualize the mesh without backface culling
+# pip install git+https://github.com/ZiYang-xie/viser.git
+
+python demo.py -p "A beautiful landscape with a river and mountains" --return_mesh
+```
+
+After running the demo script, A local viser server will be launched at `http://localhost:8080`, where you can explore the generated 3D scene in real-time.
+
+
+## 🎮 Advanced Usage
 
 ### WorldGen API
 Quick start with WorldGen (mode in `t2s` or `i2s`) and generate your first 3D scene in seconds:  
@@ -123,25 +149,6 @@ o3d.io.write_triangle_mesh("path/to/your/output.ply", mesh) # Save mesh as a .pl
 # If want to use background inpainting feature, install iopaint
 pip install iopaint --no-dependencies
 ```
-
-
-## 🕹️ Demo with 3D Scene Visualization
-We provide a demo script to help you quickly get started and visualize the 3D scene in a web browser. The script is powered by [Viser](https://github.com/nerfstudio-project/viser).
-```bash
-# Generate a 3D scene from a text prompt
-python demo.py -p "A beautiful landscape with a river and mountains"
-
-# Generate a 3D scene from an image
-python demo.py -i "path/to/your/image.jpg" -p "<Optional: TEXT PROMPT to describe the scene>"
-
-# 🔥 New feature: Generate a 3D scene in mesh mode
-# Make sure you installed my customized viser to correctly visualize the mesh without backface culling
-# pip install git+https://github.com/ZiYang-xie/viser.git
-
-python demo.py -p "A beautiful landscape with a river and mountains" --return_mesh
-```
-
-After running the demo script, A local viser server will be launched at `http://localhost:8080`, where you can explore the generated 3D scene in real-time.
 
 ### Free-viewpoint Exploration in 3D Scene
 <div align="center" style="margin-bottom: 15px;">
