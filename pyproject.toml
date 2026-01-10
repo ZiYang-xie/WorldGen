@@ -33,8 +33,7 @@ dependencies = [
     "trimesh>=4.6.1",
     "nunchaku @ https://github.com/mit-han-lab/nunchaku/releases/download/v0.2.0/nunchaku-0.2.0+torch2.7-cp311-cp311-linux_x86_64.whl",
     "viser @ git+https://github.com/ZiYang-xie/viser.git", # Modified viser to show double-side texture mesh to better view the scene
-    "UniK3D @ git+https://github.com/lpiccinelli-eth/UniK3D.git",
-    # "pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git",
+    "UniK3D @ git+https://github.com/lpiccinelli-eth/UniK3D.git"
 ]
 
 [tool.setuptools.packages.find]

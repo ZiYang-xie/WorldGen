@@ -7,3 +7,6 @@
 [submodule "submodules/viser"]
 	path = submodules/viser
 	url = https://github.com/ZiYang-xie/viser.git
+[submodule "submodules/ml-sharp"]
+	path = submodules/ml-sharp
+	url = git@github.com:apple/ml-sharp.git

@@ -6,15 +6,16 @@ import open3d as o3d
 from .pano_depth import build_depth_model, pred_pano_depth, pred_depth
 from .pano_seg import build_segment_model, seg_pano_fg
 from .pano_gen import build_pano_gen_model, gen_pano_image, build_pano_fill_model, gen_pano_fill_image
+from .pano_sharp import build_sharp_model, predict_equirectangular
 from .pano_inpaint import build_inpaint_model, inpaint_image
 from .utils.splat_utils import convert_rgbd_to_gs, SplatFile, mask_splat, merge_splats
 from .utils.general_utils import map_image_to_pano, resize_img, depth_match, convert_rgbd2mesh_panorama
 from typing import Optional, Union
 
-
 class WorldGen:
     def __init__(self, 
             mode: str = 't2s',
+            use_sharp: bool = False,
             inpaint_bg: bool = False,
             lora_path: str = None,
             resolution: int = 1600,
@@ -39,6 +40,10 @@ class WorldGen:
             self.pano_gen_model = build_pano_fill_model(lora_path=lora_path, device=device, low_vram=low_vram)
         else:
             raise ValueError(f"Invalid mode: {mode}, mode must be 't2s' or 'i2s'")
+
+        self.use_sharp = use_sharp
+        if use_sharp:
+            self.sharp_model = build_sharp_model(device=device)
 
         self.inpaint_bg = inpaint_bg
         if inpaint_bg:
@@ -74,6 +79,10 @@ class WorldGen:
         return merged_splat
     
     def _generate_world(self, pano_image: Image.Image, return_mesh: bool = False) -> Union[SplatFile, o3d.geometry.TriangleMesh]:
+        if self.use_sharp:
+            splat = predict_equirectangular(self.sharp_model, pano_image, device=self.device)
+            return splat
+
         init_pred = pred_pano_depth(self.depth_model, pano_image)
         if return_mesh:
             mesh = self.depth2mesh(init_pred)

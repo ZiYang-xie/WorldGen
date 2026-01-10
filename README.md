@@ -8,7 +8,7 @@
 
 [![📄 Project Page](https://img.shields.io/badge/📄-Project_Page-orange)](https://worldgen.github.io/)
 [![Hugging Face Model](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-blue?style=flat)](https://huggingface.co/LeoXie/WorldGen)
-![Badge](https://img.shields.io/badge/version-v0.1.0-green)
+![Badge](https://img.shields.io/badge/version-v0.2.0-green)
 [![GitHub Stars](https://img.shields.io/github/stars/ZiYang-xie/WorldGen)](https://github.com/ZiYang-xie/WorldGen/stargazers/)
 
 </div>
@@ -52,16 +52,14 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ---
 
 ## News and TODOs
-- [x] `05.10.2025` 🔥 Add support for low-vram generation (Only use ~10GB VRAM for generation).
+- [x] `01.10.2026` 🔥 **[New feature]** Add support for ml-sharp (modified to work on 360 images) for better GS generation (Currently in experimental mode)
+- [x] `05.10.2025` 🤖 Add support for low-vram generation (Only use ~10GB VRAM for generation).
 - [x] `04.26.2025` 📄 **New** Relase a project page for WorldGen
 - [x] `04.22.2025` 🏡 Add support for mesh scene generation (Should give better results than splat)
 - [x] `04.21.2025` 🎉 Opensource the WorldGen codebase 
 - [x] `04.19.2025` 🖼️ Add support for image-to-scene generation
 - [x] `04.17.2025` 📝 Add support for text-to-scene generation
-- [ ] 🏃🏻‍♀️ Release a better lora checkpoint.
 - [ ] Release technical report and video
-- [ ] Support higher resolution generation (e.g., 1080P, currently limited by computational resources)
-- [ ] Release huggingface demo.
 - [ ] Support better background inpainting (Invisible region inpainting)
 
 ## 📦 Installation
@@ -70,7 +68,7 @@ Getting started with WorldGen is simple!
 
 ```bash
 # Clone the repository 
-git clone https://github.com/ZiYang-xie/WorldGen.git
+git clone --recursive https://github.com/ZiYang-xie/WorldGen.git 
 cd WorldGen
 
 # Create a new conda environment
@@ -86,6 +84,9 @@ pip install .
 # Install pytorch3d dependencies
 pip install git+https://github.com/facebookresearch/pytorch3d.git --no-build-isolation
 
+# 🔥 [New feature]: If you want to use the ml-sharp experimental feature, you need to install the ml-sharp dependencies
+pip install -e submodules/ml-sharp
+
 # You should also accept the license of the gated model (FLUX.1-dev).
 # https://huggingface.co/black-forest-labs/FLUX.1-dev
 # Login to Hugging Face and accept the license.
@@ -98,10 +99,13 @@ We provide a demo script to help you quickly get started and visualize the 3D sc
 # Generate a 3D scene from a text prompt
 python demo.py -p "A beautiful landscape with a river and mountains"
 
-# Generate a 3D scene from an image
-python demo.py -i "path/to/your/image.jpg" -p "<Optional: TEXT PROMPT to describe the scene>"
+# 🔥 New feature: Generate a 3D scene using the ml-sharp experimental feature (It may produce better results than the default mode)
+python demo.py -p "A well-designed cozy bedroom" --use_sharp
 
-# 🔥 New feature: Generate a 3D scene in mesh mode
+# Generate a 3D scene from an image
+python demo.py -i "path/to/your/image.jpg" -p "<Optional: TEXT PROMPT to describe the scene>" --use_sharp
+
+# Generate a 3D scene in mesh mode
 # Make sure you installed my customized viser to correctly visualize the mesh without backface culling
 # pip install git+https://github.com/ZiYang-xie/viser.git
 
@@ -194,6 +198,7 @@ This project is built on top of the follows, please consider citing them if you 
 - [FLUX.1](https://huggingface.co/black-forest-labs/FLUX.1-dev)
 - [OneFormer](https://github.com/SHI-Labs/OneFormer)
 - [LaMa](https://github.com/saic-mdal/lama)
+- [ml-sharp](https://github.com/apple/ml-sharp)
 
 Some of the core methods and ideas in this project are inspired by the following projects, special thanks to them:
 - [WonderWorld](https://kovenyu.com/wonderworld/) [RGBD to GS conversion]

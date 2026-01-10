@@ -53,6 +53,11 @@ class ViserServer:
             self.return_mesh = True
             assert (not args.inpaint_bg), "inpaint_bg is not supported when return_mesh is True"
 
+        if args.use_sharp:
+            print("\033[92m" + "=" * 80 + "\033[0m")
+            print("\033[95m 🚀 INFO: You are using the ml-sharp experimental feature to generate the world \033[0m")
+            print("\033[92m" + "=" * 80 + "\033[0m")
+
         if args.inpaint_bg:
             print("\033[93m" + "!" * 70 + "\033[0m")
             print("\033[93m⚠️  WARNING: You are using the inpaint_bg experimental feature ⚠️\033[0m")
@@ -61,6 +66,7 @@ class ViserServer:
         
         mode = "t2s" if args.image is None else "i2s"
         self.worldgen = WorldGen(mode=mode, 
+                                 use_sharp=args.use_sharp,
                                  inpaint_bg=args.inpaint_bg, 
                                  resolution=args.resolution,
                                  device=self.device,
@@ -287,11 +293,8 @@ class ViserServer:
         return scene
 
     def set_bg(self, splat: SplatFile):
-        position = np.linalg.norm(splat.centers, axis=1)
-        indices = np.argsort(position)[-5:]  # Get indices of k largest distances
-        farthest_point_color = splat.rgbs[indices]
-        farthest_point_color = np.mean(farthest_point_color, axis=0)
-        bg_img = np.ones((1, 1, 3)) * farthest_point_color
+        # Use black background
+        bg_img = np.zeros((1, 1, 3))
         self.server.scene.set_background_image(bg_img)
 
     def run(self):
@@ -346,6 +349,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", "-o", type=str, default="output", help="Path to output directory")
     parser.add_argument("--resolution", "-r", type=int, default=1600, help="Resolution of the generated world")
     parser.add_argument("--pano_image", type=str, default=None, help="Path to input Panorama image")
+    parser.add_argument("--use_sharp", action="store_true", help="Whether to use the ml-sharp experimental feature")
     parser.add_argument("--inpaint_bg", action="store_true", help="Whether to inpaint the background")
     parser.add_argument("--return_mesh", action="store_true", help="Whether to return the mesh")
     parser.add_argument("--save_scene", action="store_true", help="Whether to save the scene")
