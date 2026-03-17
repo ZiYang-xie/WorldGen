@@ -52,6 +52,7 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ---
 
 ## News and TODOs
+- [x] `03.17.2026` 🔧 **[Improved Quality]** Improve the GS quality by fixing the project scale issue. Make ml-sharp dependency optional.
 - [x] `01.10.2026` 🔥 **[New feature]** Add support for ml-sharp (modified to work on 360 images) for better GS generation (Currently in experimental mode)
 - [x] `05.10.2025` 🤖 Add support for low-vram generation (Only use ~10GB VRAM for generation).
 - [x] `04.26.2025` 📄 **New** Relase a project page for WorldGen
