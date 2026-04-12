@@ -1,4 +1,3 @@
-import click
 import numpy as np
 import math
 import torch
@@ -12,30 +11,25 @@ from sharp.models import (
     RGBGaussianPredictor,
     create_predictor,
 )
-from sharp.utils import io
 from sharp.utils import color_space as cs_utils
 from sharp.utils.gaussians import (
     Gaussians3D,
-    SceneMetaData,
-    save_ply,
     unproject_gaussians,
-)
-from sharp.models import (
-    PredictorParams,
-    RGBGaussianPredictor,
-    create_predictor,
 )
 
 from worldgen.utils.equirectangular import (
-    extract_overlapping_views,
-    get_view_extrinsics,
-    merge_with_consensus,
-    rotate_quaternions
+    extract_cubemap_from_equirectangular,
+    get_cubemap_face_params,
+    get_cubemap_extrinsics,
+    rotate_quaternions,
 )
 
 from worldgen.utils.splat_utils import SplatFile
 
 DEFAULT_MODEL_URL = "https://ml-site.cdn-apple.com/models/sharp/sharp_2572gikvuh.pt"
+
+CUBEMAP_FACE_NAMES = ["front", "back", "right", "left", "up", "down"]
+
 
 def build_sharp_model(device: torch.device) -> RGBGaussianPredictor:
     """Build and load the pretrained Sharp model."""
@@ -45,50 +39,80 @@ def build_sharp_model(device: torch.device) -> RGBGaussianPredictor:
     predictor.eval()
     return predictor.to(device)
 
+
 @torch.no_grad()
-def predict_image(
+def predict_cubemap_face(
     predictor: RGBGaussianPredictor,
-    image: np.ndarray,
-    f_px: float,
+    face_rgb: torch.Tensor,
+    face_depth: torch.Tensor,
+    face_size: int,
     device: torch.device,
 ) -> Gaussians3D:
-    """Predict Gaussians from an image."""
+    """Predict Gaussians from a cubemap face RGB, then align depth to DA-2.
+
+    Args:
+        predictor: The Sharp predictor model.
+        face_rgb: (3, H, W) RGB tensor in [0, 1].
+        face_depth: (1, H, W) depth from DA-2 for this face.
+        face_size: Size of the cubemap face.
+        device: Device.
+
+    Returns:
+        Gaussians3D in camera space, with depth aligned to DA-2.
+    """
     internal_shape = (1536, 1536)
 
-    image_pt = torch.from_numpy(image.copy()).float().to(device).permute(2, 0, 1) / 255.0
-    _, height, width = image_pt.shape
-    disparity_factor = torch.tensor([f_px / width]).float().to(device)
+    # 90 deg FOV cubemap → focal = face_size / 2
+    f_px = face_size / 2.0
 
-    image_resized_pt = F.interpolate(
-        image_pt[None],
-        size=(internal_shape[1], internal_shape[0]),
+    image_resized = F.interpolate(
+        face_rgb.unsqueeze(0),
+        size=internal_shape,
         mode="bilinear",
         align_corners=True,
     )
 
-    gaussians_ndc = predictor(image_resized_pt, disparity_factor)
-    intrinsics = (
-        torch.tensor(
-            [
-                [f_px, 0, width / 2, 0],
-                [0, f_px, height / 2, 0],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1],
-            ]
-        )
-        .float()
-        .to(device)
-    )
-    intrinsics_resized = intrinsics.clone()
-    intrinsics_resized[0] *= internal_shape[0] / width
-    intrinsics_resized[1] *= internal_shape[1] / height
+    disparity_factor = torch.tensor([f_px / face_size]).float().to(device)
+    gaussians_ndc = predictor(image_resized, disparity_factor)
 
-    # Convert Gaussians to metrics space.
-    gaussians = unproject_gaussians(
-        gaussians_ndc, torch.eye(4).to(device), intrinsics_resized, internal_shape
+    f_resized = f_px * internal_shape[0] / face_size
+    intrinsics_resized = torch.tensor([
+        [f_resized, 0, internal_shape[0] / 2, 0],
+        [0, f_resized, internal_shape[1] / 2, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1],
+    ], dtype=torch.float32, device=device)
+
+    # Unproject to camera-space metric coordinates using identity extrinsics
+    gaussians_cam = unproject_gaussians(
+        gaussians_ndc, torch.eye(4, device=device), intrinsics_resized, internal_shape
     )
 
-    return gaussians
+    # Align Sharp's depth to DA-2 depth
+    # Sharp positions are in camera space: z is depth along the view axis
+    sharp_depths = gaussians_cam.mean_vectors[0, :, 2]  # (N,) z-values
+    valid = sharp_depths > 0.01
+
+    # Compute median ratio between DA-2 depth and Sharp depth
+    da2_median = face_depth[face_depth > 0.01].median()
+    sharp_median = sharp_depths[valid].median()
+
+    if sharp_median > 1e-6 and da2_median > 1e-6:
+        scale = da2_median / sharp_median
+        scaled_positions = gaussians_cam.mean_vectors * scale
+        scaled_sv = gaussians_cam.singular_values * scale
+    else:
+        scaled_positions = gaussians_cam.mean_vectors
+        scaled_sv = gaussians_cam.singular_values
+
+    return Gaussians3D(
+        mean_vectors=scaled_positions,
+        singular_values=scaled_sv,
+        quaternions=gaussians_cam.quaternions,
+        colors=gaussians_cam.colors,
+        opacities=gaussians_cam.opacities,
+    )
+
 
 @torch.no_grad()
 def predict_equirectangular(
@@ -96,91 +120,80 @@ def predict_equirectangular(
     equirect_image: Image.Image,
     device: torch.device,
     face_size: int = 768,
-    fov_deg: float = 95.0,
-    num_horizontal: int = 6,
-    use_consensus: bool = True,
-) -> tuple[Gaussians3D, float]:
-    """Predict Gaussians from an equirectangular (360°) image.
+    depth_predictions: dict = None,
+) -> SplatFile:
+    """Predict Gaussians from an equirectangular image using 6 cubemap faces.
 
-    Uses overlapping views with consensus-based merging for better seam handling.
+    Uses DA-2 equirectangular depth to align Sharp's per-face depth predictions
+    for globally consistent geometry.
 
     Args:
-        predictor: The Gaussian predictor model.
-        equirect_image: (H, W, 3) equirectangular image as numpy array.
+        predictor: The Sharp Gaussian predictor model.
+        equirect_image: Equirectangular PIL image.
         device: Device to run inference on.
-        face_size: Size of each extracted perspective view.
-        fov_deg: Field of view for each view (>90° creates overlap for consensus).
-        num_horizontal: Number of horizontal views around the horizon.
-        use_consensus: Whether to use consensus-based merging (reduces seam artifacts).
+        face_size: Size of each cubemap face.
+        depth_predictions: Dict from pred_pano_depth with 'distance' key.
 
     Returns:
-        Tuple of (merged Gaussians, focal length in pixels).
+        SplatFile with merged Gaussians from all 6 cubemap faces.
     """
-
-    # Convert image to tensor (C, H, W)
-    equirect_image = np.array(equirect_image)
-    equirect_pt = torch.from_numpy(equirect_image.copy()).float().permute(2, 0, 1) / 255.0
+    equirect_np = np.array(equirect_image)
+    equirect_pt = torch.from_numpy(equirect_np.copy()).float().permute(2, 0, 1) / 255.0
     equirect_pt = equirect_pt.to(device)
-    views = extract_overlapping_views(
-        equirect_pt,
-        view_size=face_size,
-        fov_deg=fov_deg,
-        num_horizontal=num_horizontal,
-        num_polar_rings=1,  # No extra polar rings - just up/down views
-    )
 
-    f_px = face_size / (2 * math.tan(math.radians(fov_deg / 2)))
+    # Extract 6 cubemap faces from equirectangular RGB
+    cubemap_rgb = extract_cubemap_from_equirectangular(equirect_pt, face_size)
 
-    all_gaussians = []
-    all_forwards = []
+    # Extract 6 cubemap faces from equirectangular depth (DA-2)
+    distance = depth_predictions["distance"]  # (H, W)
+    distance_pt = distance.unsqueeze(0).to(device)  # (1, H, W)
+    cubemap_depth = extract_cubemap_from_equirectangular(distance_pt, face_size)
 
-    for view in views:
-        view_np = (view.image.permute(1, 2, 0).cpu().numpy() * 255.0).astype(np.uint8)
-        gaussians_view = predict_image(predictor, view_np, f_px, device)
+    face_params = get_cubemap_face_params(device)
 
-        extrinsics = get_view_extrinsics(view.forward, view.up, device)
+    all_positions = []
+    all_singular_values = []
+    all_quaternions = []
+    all_colors = []
+    all_opacities = []
+
+    print(f"Processing 6 cubemap faces through Sharp model...")
+    for i, face_name in enumerate(CUBEMAP_FACE_NAMES):
+        print(f"  Face {i+1}/6: {face_name}...")
+        face_rgb = getattr(cubemap_rgb, face_name)    # (3, H, W)
+        face_depth = getattr(cubemap_depth, face_name)  # (1, H, W)
+
+        # Run Sharp on this face and align to DA-2 depth
+        gaussians_cam = predict_cubemap_face(
+            predictor, face_rgb, face_depth.squeeze(0), face_size, device
+        )
+
+        # Transform from camera space to world space
+        extrinsics = get_cubemap_extrinsics(face_name, device)
         world_from_camera = torch.linalg.inv(extrinsics)
         rotation = world_from_camera[:3, :3]
 
-        mean_vectors = gaussians_view.mean_vectors @ rotation.T
-        quaternions = rotate_quaternions(gaussians_view.quaternions, rotation)
+        positions_world = gaussians_cam.mean_vectors @ rotation.T
+        quaternions_world = rotate_quaternions(gaussians_cam.quaternions, rotation)
 
-        transformed_gaussians = Gaussians3D(
-            mean_vectors=mean_vectors,
-            singular_values=gaussians_view.singular_values,
-            quaternions=quaternions,
-            colors=gaussians_view.colors,
-            opacities=gaussians_view.opacities,
-        )
+        all_positions.append(positions_world.squeeze(0))
+        all_singular_values.append(gaussians_cam.singular_values.squeeze(0))
+        all_quaternions.append(quaternions_world.squeeze(0))
+        all_colors.append(gaussians_cam.colors.squeeze(0))
+        all_opacities.append(gaussians_cam.opacities.squeeze(0))
 
-        all_gaussians.append(transformed_gaussians)
-        all_forwards.append(view.forward)
-
-    # Merge all Gaussians
-    if use_consensus:
-        merged_gaussians = merge_with_consensus(
-            all_gaussians,
-            all_forwards,
-            fov_deg=fov_deg,
-            voxel_size=0.02,
-            depth_tolerance=0.15,
-        )
-    else:
-        merged_gaussians = _merge_gaussians(all_gaussians)
-
-    positions = merged_gaussians.mean_vectors.squeeze(0)
-    scales = merged_gaussians.singular_values.squeeze(0)
-    quats = merged_gaussians.quaternions.squeeze(0)
-    colors = merged_gaussians.colors.squeeze(0)
-    opacities = merged_gaussians.opacities.squeeze(0).unsqueeze(-1)
-
+    print("Merging Gaussians from all faces...")
+    positions = torch.cat(all_positions, dim=0)
+    scales = torch.cat(all_singular_values, dim=0)
+    quats = torch.cat(all_quaternions, dim=0)
+    colors = torch.cat(all_colors, dim=0)
+    opacities = torch.cat(all_opacities, dim=0).unsqueeze(-1)
 
     R = quaternion_to_matrix(quats)
     S = torch.diag_embed(scales)
     covariances = R @ S @ S.transpose(-1, -2) @ R.transpose(-1, -2)
 
     # Convert colors from linearRGB to sRGB for proper display
-    # (Sharp outputs linearRGB, but viser/displays expect sRGB)
     colors_srgb = cs_utils.linearRGB2sRGB(colors)
 
     return SplatFile(

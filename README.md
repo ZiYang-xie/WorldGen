@@ -52,6 +52,8 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 ---
 
 ## News and TODOs
+- [x] `04.12.2026` 🔧 **[Improved Sharp]** Rework ml-sharp pipeline: use cubemap depth to align Sharp's per-face gaussians for better global consistency. Reduced from 8+ views to 6 cubemap faces.
+- [x] `04.11.2026` 🔄 **[Updated Depth]** Replace UniK3D with [DA-2](https://github.com/EnVision-Research/DA-2) for better 360° depth estimation.
 - [x] `03.17.2026` 🔧 **[Improved Quality]** Improve the GS quality by fixing the project scale issue. Make ml-sharp dependency optional.
 - [x] `01.10.2026` 🔥 **[New feature]** Add support for ml-sharp (modified to work on 360 images) for better GS generation (Currently in experimental mode)
 - [x] `05.10.2025` 🤖 Add support for low-vram generation (Only use ~10GB VRAM for generation).
@@ -77,10 +79,13 @@ conda create -n worldgen python=3.11
 conda activate worldgen
 
 # Install torch and torchvision (with GPU support)
-pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+pip3 install torch torchvision
 
 # Install worldgen
 pip install .
+
+# Install DA-2 (360 depth estimation) -- use --no-deps to avoid version conflicts
+pip install git+https://github.com/EnVision-Research/DA-2.git#subdirectory=src --no-deps
 
 # Install pytorch3d dependencies
 pip install git+https://github.com/facebookresearch/pytorch3d.git --no-build-isolation
@@ -99,9 +104,11 @@ We provide a demo script to help you quickly get started and visualize the 3D sc
 ```bash
 # Generate a 3D scene from a text prompt
 python demo.py -p "A beautiful landscape with a river and mountains"
+# Indoor scene example
+python demo.py -p "A well-designed cozy bedroom"
 
 # 🔥 New feature: Generate a 3D scene using the ml-sharp experimental feature (It may produce better results than the default mode)
-python demo.py -p "A well-designed cozy bedroom" --use_sharp
+python demo.py -p "<TEXT PROMPT to describe the scene>" --use_sharp
 
 # Generate a 3D scene from an image
 python demo.py -i "path/to/your/image.jpg" -p "<Optional: TEXT PROMPT to describe the scene>" --use_sharp
@@ -193,7 +200,8 @@ If you find this project useful, please consider citing it as follows:
 
 ## 🤝 Acknowledgements
 This project is built on top of the follows, please consider citing them if you find them useful:
-- [Unik3D](https://github.com/lpiccinelli-eth/UniK3D)
+- [DA-2](https://github.com/EnVision-Research/DA-2)
+- [UniK3D](https://github.com/lpiccinelli-eth/UniK3D)
 - [Layerpano3D](https://github.com/3DTopia/LayerPano3D)
 - [Viser](https://github.com/nerfstudio-project/viser)
 - [FLUX.1](https://huggingface.co/black-forest-labs/FLUX.1-dev)

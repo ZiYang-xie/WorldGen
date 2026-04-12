@@ -256,6 +256,9 @@ class ViserServer:
         client.camera.fov = initial_fov_rad
         client.camera.far = 10000
         client.camera.near = 0.01
+        # Set look_at very close to the camera so mouse-drag rotates the view
+        # direction instead of orbiting a target (fly mode).
+        client.camera.look_at = (0, 0, 0.01)
 
         with client.gui.add_folder("Camera Path"):
             self.interpolation_steps = client.gui.add_slider(

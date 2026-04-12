@@ -79,11 +79,13 @@ class WorldGen:
         return merged_splat
     
     def _generate_world(self, pano_image: Image.Image, return_mesh: bool = False) -> Union[SplatFile, o3d.geometry.TriangleMesh]:
+        init_pred = pred_pano_depth(self.depth_model, pano_image)
+
         if self.use_sharp:
-            splat = predict_equirectangular(self.sharp_model, pano_image, device=self.device)
+            from .pano_sharp import predict_equirectangular
+            splat = predict_equirectangular(self.sharp_model, pano_image, device=self.device, depth_predictions=init_pred)
             return splat
 
-        init_pred = pred_pano_depth(self.depth_model, pano_image)
         if return_mesh:
             mesh = self.depth2mesh(init_pred)
             return mesh

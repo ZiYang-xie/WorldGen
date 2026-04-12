@@ -112,10 +112,10 @@ def create_rotation_matrix(
         (3, 3) rotation matrix where columns are [right, down, forward].
     """
     forward = forward / forward.norm()
-    right = torch.cross(forward, up)
+    right = torch.linalg.cross(forward, up)
     right = right / right.norm()
 
-    down = torch.cross(forward, right)
+    down = torch.linalg.cross(forward, right)
     rotation = torch.stack([right, down, forward], dim=1)
     return rotation
 
