@@ -19,7 +19,10 @@ class LaMa:
         from iopaint.helper import load_jit_model
         self.model = load_jit_model(LAMA_MODEL_URL, device, LAMA_MODEL_MD5).eval()
 
-    def __init__(self, device: torch.device = 'cuda'):
+    def __init__(self, device=None):
+        if device is None:
+            from auroch_syna.runtime import resolve_device
+            device = resolve_device().name
         self.device = device
         self.init_model(device)
 

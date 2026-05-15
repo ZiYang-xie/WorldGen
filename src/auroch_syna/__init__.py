@@ -1,43 +1,26 @@
-"""Auroch Syna compatibility package.
+"""Auroch Syna — cross-platform world-building environment.
 
-This package acts as a lightweight bridge while the full package rename is
-performed. It exposes `__version__` and re-exports the main public symbols.
-
-It also inserts the original `src/worldgen` directory onto the package
-`__path__` so `import auroch_syna.<module>` will resolve to the existing
-`src/worldgen` sources until we move files.
+Top-level package. Heavy ML dependencies (torch, diffusers, open3d, pytorch3d)
+are only imported lazily on attribute access so that
+`import auroch_syna` is cheap and works even in environments where the
+optional `[ml]` extra is not installed.
 """
-import os
-from importlib import import_module
+from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-# Keep the old `src/worldgen` path available so submodule imports continue
-# to work during the migration window. Do not import heavy submodules here.
-_here = os.path.abspath(os.path.dirname(__file__))
-_worldgen_path = os.path.abspath(os.path.join(_here, "..", "worldgen"))
-if os.path.isdir(_worldgen_path) and _worldgen_path not in __path__:
-	__path__.insert(0, _worldgen_path)
+__all__ = ["WorldGen", "SplatFile", "__version__"]
 
 
 def __getattr__(name: str):
-	"""Lazily import heavy attributes on access to avoid expensive imports at
-	module import time (useful for CI smoke tests and lightweight tooling).
-	"""
-	if name == "WorldGen":
-		mod = import_module("auroch_syna.worldgen")
-		return getattr(mod, "WorldGen")
-	if name == "SplatFile":
-		# splat utils might live under worldgen.utils during migration
-		try:
-			mod = import_module("auroch_syna.utils.splat_utils")
-		except Exception:
-			mod = import_module("worldgen.utils.splat_utils")
-		return getattr(mod, "SplatFile")
-	raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    if name == "WorldGen":
+        from auroch_syna.worldgen.worldgen import WorldGen
+        return WorldGen
+    if name == "SplatFile":
+        from auroch_syna.worldgen.utils.splat_utils import SplatFile
+        return SplatFile
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def __dir__():
-	return ["WorldGen", "SplatFile", "__version__"]
-
-__all__ = ["WorldGen", "SplatFile", "__version__"]
+    return list(__all__)

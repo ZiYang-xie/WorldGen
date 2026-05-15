@@ -1,13 +1,18 @@
 import re
+import warnings
 from typing import Dict, Tuple, List
 
 import torch
 import safetensors.torch
 
+from auroch_syna.runtime import get_logger
+
 try:
     from nunchaku.lora.flux.compose import compose_lora as _nunchaku_compose_lora
 except Exception:
     _nunchaku_compose_lora = None
+
+log = get_logger(__name__)
 
 
 def get_block_number(key):
@@ -91,7 +96,17 @@ def compose_lora_with_fixes(lora_paths: List[Tuple[str, float]]) -> Dict[str, to
     fixed_loras = [load_and_fix_lora(path) for path, weight in lora_paths]
 
     if _nunchaku_compose_lora is None:
-        print("[WorldGen] nunchaku unavailable on macOS; using first fixed LoRA fallback.")
+        if len(fixed_loras) > 1:
+            dropped = [p for p, _ in lora_paths[1:]]
+            warnings.warn(
+                "nunchaku is unavailable on this platform; multi-LoRA compose is "
+                f"not supported. Using the first LoRA only and dropping {len(dropped)} "
+                f"others: {dropped}.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        elif fixed_loras:
+            log.info("nunchaku unavailable; using first (and only) fixed LoRA directly.")
         if not fixed_loras:
             return {}
         first_state_dict, _weight = fixed_loras[0]

@@ -1,21 +1,11 @@
 import numpy as np
-import math
 import torch
 import torch.nn.functional as F
 import torch.utils.data
 from pytorch3d.transforms import quaternion_to_matrix
 from PIL import Image
 
-from sharp.models import (
-    PredictorParams,
-    RGBGaussianPredictor,
-    create_predictor,
-)
-from sharp.utils import color_space as cs_utils
-from sharp.utils.gaussians import (
-    Gaussians3D,
-    unproject_gaussians,
-)
+from auroch_syna.runtime import get_logger
 
 from .utils.equirectangular import (
     extract_cubemap_from_equirectangular,
@@ -30,9 +20,18 @@ DEFAULT_MODEL_URL = "https://ml-site.cdn-apple.com/models/sharp/sharp_2572gikvuh
 
 CUBEMAP_FACE_NAMES = ["front", "back", "right", "left", "up", "down"]
 
+log = get_logger(__name__)
 
-def build_sharp_model(device: torch.device) -> RGBGaussianPredictor:
-    """Build and load the pretrained Sharp model."""
+
+def build_sharp_model(device: torch.device):
+    """Build and load the pretrained Sharp model.
+
+    ml-sharp is imported here, not at module top-level, so this file is
+    importable on machines that don't have the optional ml-sharp
+    submodule installed.
+    """
+    from sharp.models import PredictorParams, create_predictor
+
     state_dict = torch.hub.load_state_dict_from_url(DEFAULT_MODEL_URL, progress=True)
     predictor = create_predictor(PredictorParams())
     predictor.load_state_dict(state_dict)
@@ -42,12 +41,12 @@ def build_sharp_model(device: torch.device) -> RGBGaussianPredictor:
 
 @torch.no_grad()
 def predict_cubemap_face(
-    predictor: RGBGaussianPredictor,
+    predictor,
     face_rgb: torch.Tensor,
     face_depth: torch.Tensor,
     face_size: int,
     device: torch.device,
-) -> Gaussians3D:
+):
     """Predict Gaussians from a cubemap face RGB, then align depth to DA-2.
 
     Args:
@@ -60,6 +59,8 @@ def predict_cubemap_face(
     Returns:
         Gaussians3D in camera space, with depth aligned to DA-2.
     """
+    from sharp.utils.gaussians import Gaussians3D, unproject_gaussians
+
     internal_shape = (1536, 1536)
 
     # 90 deg FOV cubemap → focal = face_size / 2
@@ -116,7 +117,7 @@ def predict_cubemap_face(
 
 @torch.no_grad()
 def predict_equirectangular(
-    predictor: RGBGaussianPredictor,
+    predictor,
     equirect_image: Image.Image,
     device: torch.device,
     face_size: int = 768,
@@ -137,6 +138,8 @@ def predict_equirectangular(
     Returns:
         SplatFile with merged Gaussians from all 6 cubemap faces.
     """
+    from sharp.utils import color_space as cs_utils
+
     equirect_np = np.array(equirect_image)
     equirect_pt = torch.from_numpy(equirect_np.copy()).float().permute(2, 0, 1) / 255.0
     equirect_pt = equirect_pt.to(device)
@@ -157,9 +160,9 @@ def predict_equirectangular(
     all_colors = []
     all_opacities = []
 
-    print(f"Processing 6 cubemap faces through Sharp model...")
+    log.info("Processing 6 cubemap faces through Sharp model")
     for i, face_name in enumerate(CUBEMAP_FACE_NAMES):
-        print(f"  Face {i+1}/6: {face_name}...")
+        log.info("  Face %d/6: %s", i + 1, face_name)
         face_rgb = getattr(cubemap_rgb, face_name)    # (3, H, W)
         face_depth = getattr(cubemap_depth, face_name)  # (1, H, W)
 
@@ -182,7 +185,7 @@ def predict_equirectangular(
         all_colors.append(gaussians_cam.colors.squeeze(0))
         all_opacities.append(gaussians_cam.opacities.squeeze(0))
 
-    print("Merging Gaussians from all faces...")
+    log.info("Merging Gaussians from all faces")
     positions = torch.cat(all_positions, dim=0)
     scales = torch.cat(all_singular_values, dim=0)
     quats = torch.cat(all_quaternions, dim=0)

@@ -1,14 +1,20 @@
 from PIL import Image
 import torch
-import argparse
 import numpy as np
 from transformers import OneFormerProcessor, OneFormerForUniversalSegmentation
+from auroch_syna.runtime import get_logger
 from .utils.general_utils import pano_to_cube, cube_to_pano
 
-def build_segment_model(device: torch.device = 'cuda'):
+log = get_logger(__name__)
+
+
+def build_segment_model(device=None):
+    if device is None:
+        from auroch_syna.runtime import resolve_device
+        device = resolve_device().name
     processor = OneFormerProcessor.from_pretrained("shi-labs/oneformer_ade20k_swin_large")
     model = OneFormerForUniversalSegmentation.from_pretrained("shi-labs/oneformer_ade20k_swin_large")
-    torch.set_float32_matmul_precision(['high', 'highest'][0])
+    torch.set_float32_matmul_precision("high")
     model.to(device)
     model.eval()
     return processor, model
@@ -31,10 +37,10 @@ def segment_image_oneformer(processor, model, image: Image.Image):
 @torch.inference_mode()
 def seg_pano(processor, model, image: Image.Image):
     H, W = image.height, image.width
-    assert (H / W == 0.5),  "Input image aspect ratio is not 2:1. Is it a panorama?"
+    assert H * 2 == W, "Input image aspect ratio is not 2:1. Is it a panorama?"
     cube_face_res = H // 2
 
-    print(f"Processing as panorama. Converting to cubemap (calculated face res: {cube_face_res}px)...")
+    log.info("Processing panorama as cubemap (face_res=%dpx)", cube_face_res)
     cube_faces = pano_to_cube(image, face_w=cube_face_res)
 
     cube_masks = []

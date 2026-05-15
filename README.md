@@ -73,19 +73,22 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 Getting started with Auroch Syna is simple!
 
 ```bash
-# Clone the repository 
-git clone --recursive https://github.com/ZiYang-xie/WorldGen.git 
-cd WorldGen
+# Clone the repository
+git clone --recursive https://github.com/auroch-syna/syna.git
+cd Syna
 
-# Create a new conda environment
-conda create -n worldgen python=3.11
-conda activate worldgen
+# Create a new environment
+conda create -n auroch_syna python=3.11
+conda activate auroch_syna
 
-# Install torch and torchvision (with GPU support)
+# Install torch and torchvision
 pip3 install torch torchvision
 
-# Install auroch_syna
+# Install the runtime (light, no ML deps)
 pip install .
+
+# Install the ML pipeline extras (FLUX, DA-2, segmentation, splat utils)
+pip install ".[ml]"
 
 # Install DA-2 (360 depth estimation) -- use --no-deps to avoid version conflicts
 pip install git+https://github.com/EnVision-Research/DA-2.git#subdirectory=src --no-deps

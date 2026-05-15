@@ -4,43 +4,102 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auroch_syna"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
-  { name="Carter Birchall", email="carter.birchall@gmail.com" },
+  { name = "Carter Birchall", email = "carter.birchall@gmail.com" },
 ]
-description = "A package for 3D scene generation 🌏"
+description = "Cross-platform world-building environment 🌏"
 readme = "README.md"
-requires-python = ">=3.11" 
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
 
+# Core deps: enough to import auroch_syna, the runtime package, the
+# scene IR, the daemon, and the CLI. NO torch / open3d / pytorch3d here.
 dependencies = [
-    "torch>=2.7.0",
-    "torchvision>=0.22.0",
-    "diffusers>=0.33.1",
-    "xformers>=0.0.30",
-    "transformers>=4.48.3",
-    "py360convert>=0.1.0",
-    "einops>=0.7.0",
     "pillow>=8.0.0",
-    "scikit-image>=0.24.0",
-    "sentencepiece>=0.2.0",
-    "opencv-python>=4.12.0.88",
-    "peft>=0.7.1",
-    "open3d>=0.19.0",
-    "trimesh>=4.6.1",
-    "nunchaku @ https://github.com/mit-han-lab/nunchaku/releases/download/v0.2.0/nunchaku-0.2.0+torch2.7-cp311-cp311-linux_x86_64.whl",
-    "viser @ git+https://github.com/ZiYang-xie/viser.git", # Modified viser to show double-side texture mesh to better view the scene
-    "timm>=1.0.15",
-    "accelerate>=1.1.1",
-    "utils3d @ git+https://github.com/EasternJournalist/utils3d.git@3913c65d81e05e47b9f367250cf8c0f7462a0900"
+    "numpy>=1.24",
 ]
 
+[project.optional-dependencies]
+
+# Heavy ML pipeline. Required to actually run WorldGen.
+ml = [
+    "torch>=2.12.0",
+    "torchvision>=0.27.0",
+    "diffusers>=0.38.0",
+    "transformers>=4.57.6",   # keep 4.x; 5.x has breaking API changes
+    "accelerate>=1.13.0",
+    "peft>=0.19.1",
+    "timm>=1.0.27",
+    "sentencepiece>=0.2.0",
+    "safetensors",
+    "opencv-python>=4.13.0",
+    "scikit-image>=0.26.0",
+    "einops>=0.8.2",
+    "huggingface_hub",
+    "py360convert>=0.1.0",
+    "open3d>=0.19.0",
+    "trimesh>=4.6.1",
+    "plyfile",
+    "utils3d @ git+https://github.com/EasternJournalist/utils3d.git@3913c65d81e05e47b9f367250cf8c0f7462a0900",
+]
+
+# CUDA-x86-only fast path. Install explicitly: pip install ".[ml-cuda]"
+ml-cuda = [
+    "xformers>=0.0.30",
+    # nunchaku wheel is torch-version-specific; update URL when upgrading torch.
+    "nunchaku @ https://github.com/mit-han-lab/nunchaku/releases/download/v0.2.0/nunchaku-0.2.0+torch2.7-cp311-cp311-linux_x86_64.whl",
+]
+
+# Apple Silicon fast path. mlx-flux is loaded by the policy if present.
+ml-mlx = [
+    "mlx>=0.0.10",
+]
+
+# Browser-based viser viewer (single-user inspection only).
+viewer = [
+    "viser @ git+https://github.com/ZiYang-xie/viser.git",
+    "imageio",
+    "scipy",
+    "tqdm",
+]
+
+# Daemon transports (WebSocket server, JSON-RPC).
+daemon = [
+    "websockets>=14.0",
+]
+
+# Model export tools (ONNX, TorchScript, CoreML).
+convert = [
+    "onnx>=1.17.0",
+    "onnxruntime>=1.21.0",
+    "coremltools>=8.3; sys_platform == 'darwin'",
+]
+
+# Development.
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.5",
+    "mypy>=1.11",
+]
+
+[project.scripts]
+auroch-syna = "auroch_syna.cli:main"
+
 [tool.setuptools.packages.find]
-where = ["src"] 
+where = ["src"]
 
 [tool.setuptools.dynamic]
-version = {attr = "auroch_syna.__version__"}
+version = { attr = "auroch_syna.__version__" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["E501"]  # line length — keep wide for ML constants

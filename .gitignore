@@ -44,3 +44,10 @@ output/
 finetune/
 test/
 huggingface_ckpt/
+
+# Local backup / scratch files (timestamped pre-edit copies)
+*.before-*
+*.broken.*
+
+# Project bundles and generated splats
+*.aurochsyna/
