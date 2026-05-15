@@ -1,11 +1,16 @@
+"""LaMa-based panorama background inpainting.
+
+Decomposes the equirectangular panorama into cubemap faces, inpaints each
+face independently with LaMa, then reassembles the result.
+"""
 from PIL import Image
 import cv2
 import torch
 import numpy as np
-from .utils.general_utils import pano_to_cube, cube_to_pano
+from .utils.image_utils import pano_to_cube, cube_to_pano
 
 def build_inpaint_model(device: torch.device = 'cuda'):
-    from worldgen.models.inpaint_model import LaMa
+    from .models.inpaint_model import LaMa
     model = LaMa(device=device)
     return model
 
@@ -19,7 +24,8 @@ def inpaint_image(model, image: Image.Image, mask: Image.Image) -> Image.Image:
 @torch.inference_mode()
 def inpaint_pano(model, image: Image.Image, mask: np.ndarray):
     H, W = image.height, image.width
-    assert (H / W == 0.5),  "Input image aspect ratio is not 2:1. Is it a panorama?"
+    if abs(H / W - 0.5) > 0.01:
+        raise ValueError(f"Input image aspect ratio is not 2:1 (got {H}x{W}). Is it a panorama?")
     cube_face_res = H // 2
     mask = Image.fromarray(mask * 255).convert("L")
 
@@ -33,6 +39,5 @@ def inpaint_pano(model, image: Image.Image, mask: np.ndarray):
         cube_inpainted_faces.append(inpainted_face)
 
     pano_inpainted_image = cube_to_pano(cube_inpainted_faces, h=H, w=W, mode='bilinear')
-    pano_inpainted_image.save("pano_inpainted_image.png")
     return pano_inpainted_image
 

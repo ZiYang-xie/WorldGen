@@ -1,8 +1,16 @@
+"""Gaussian splat I/O and construction from equirectangular RGB-D data.
 
+Provides:
+    SplatFile           — in-memory 3DGS representation with PLY save.
+    convert_rgbd_to_gs  — back-project equirectangular RGB-D to Gaussians.
+    mask_splat          — select a subset of splat points by a 2-D mask.
+    merge_splats        — concatenate two SplatFiles into one.
+"""
 import numpy as np
 import torch
 from pytorch3d.transforms import matrix_to_quaternion
 from plyfile import PlyData, PlyElement
+from ..constants import SH_C0
 
 class SplatFile:
     def __init__(
@@ -24,7 +32,7 @@ class SplatFile:
     def save(self, path: str):
         xyz = self.centers
         normals = np.zeros_like(xyz)
-        f_dc = (self.rgbs - 0.5) / 0.28209479177387814 # convert to SH coefficients
+        f_dc = (self.rgbs - 0.5) / SH_C0  # convert to SH DC coefficients
         opacities = self.opacities
         scale = np.log(self.scales)
         rotation = self.rotations

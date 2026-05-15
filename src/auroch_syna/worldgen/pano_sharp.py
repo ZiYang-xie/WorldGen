@@ -1,3 +1,10 @@
+"""ML-Sharp cubemap Gaussian prediction pipeline (experimental).
+
+Decomposes an equirectangular image into 6 cubemap faces, runs the Apple
+ML-Sharp RGBGaussianPredictor on each face, aligns per-face depth to the
+globally-consistent DA-2 distance map, transforms Gaussians to world space,
+and merges all 6 faces into a single SplatFile.
+"""
 import numpy as np
 import math
 import torch
@@ -17,14 +24,15 @@ from sharp.utils.gaussians import (
     unproject_gaussians,
 )
 
-from worldgen.utils.equirectangular import (
+from .utils.equirectangular import (
     extract_cubemap_from_equirectangular,
     get_cubemap_face_params,
     get_cubemap_extrinsics,
     rotate_quaternions,
 )
 
-from worldgen.utils.splat_utils import SplatFile
+from .constants import SHARP_INTERNAL_SHAPE, DEFAULT_CUBEMAP_FACE_SIZE
+from .utils.splat_utils import SplatFile
 
 DEFAULT_MODEL_URL = "https://ml-site.cdn-apple.com/models/sharp/sharp_2572gikvuh.pt"
 
@@ -60,7 +68,7 @@ def predict_cubemap_face(
     Returns:
         Gaussians3D in camera space, with depth aligned to DA-2.
     """
-    internal_shape = (1536, 1536)
+    internal_shape = SHARP_INTERNAL_SHAPE
 
     # 90 deg FOV cubemap → focal = face_size / 2
     f_px = face_size / 2.0
@@ -119,8 +127,8 @@ def predict_equirectangular(
     predictor: RGBGaussianPredictor,
     equirect_image: Image.Image,
     device: torch.device,
-    face_size: int = 768,
-    depth_predictions: dict = None,
+    face_size: int = DEFAULT_CUBEMAP_FACE_SIZE,
+    depth_predictions=None,
 ) -> SplatFile:
     """Predict Gaussians from an equirectangular image using 6 cubemap faces.
 
@@ -145,7 +153,7 @@ def predict_equirectangular(
     cubemap_rgb = extract_cubemap_from_equirectangular(equirect_pt, face_size)
 
     # Extract 6 cubemap faces from equirectangular depth (DA-2)
-    distance = depth_predictions["distance"]  # (H, W)
+    distance = depth_predictions.distance  # (H, W)
     distance_pt = distance.unsqueeze(0).to(device)  # (1, H, W)
     cubemap_depth = extract_cubemap_from_equirectangular(distance_pt, face_size)
 

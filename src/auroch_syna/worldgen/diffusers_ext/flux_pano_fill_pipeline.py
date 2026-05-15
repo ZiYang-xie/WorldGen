@@ -37,11 +37,11 @@ from diffusers import DiffusionPipeline
 from diffusers.pipelines.flux import FluxPipelineOutput
 import torch.nn.functional as F
 from einops import rearrange
-from worldgen.utils.lora_utils import load_and_fix_lora
+from ..utils.lora_utils import load_and_fix_lora
 
 try:
     from diffusers.models.autoencoders.vae import DecoderOutput
-except:
+except ImportError:
     from diffusers.models.vae import DecoderOutput
 
 if is_torch_xla_available():

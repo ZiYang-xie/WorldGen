@@ -1,4 +1,4 @@
-# WorldGen: Generate Any 3D Scene in Seconds 
+# Auroch Syna: Cross-platform World‑Building Environment
 <div align="center">
   <img src="./assets/logo.png" alt="logo" width="300" style="margin-bottom: 210px;"/>  
 </div>
@@ -18,11 +18,11 @@
 > Feel free to contact me for any questions or collaborations!
 
 ## 🌟 Introduction
-🌏 **WorldGen** can generate 3D scenes in seconds from text prompts and images.  It is a powerful tool for creating 3D environments and scenes for games, simulations, robotics, and virtual reality applications.  
+🌏 **Auroch Syna** can generate 3D scenes in seconds from text prompts and images.  It is a powerful tool for creating 3D environments and scenes for games, simulations, robotics, and virtual reality applications.  
 - **Instant 3D Generation** ⚡️ : Create full 3D scenes from input data in seconds
-- **360° Free Exploration** 🧭 : WorldGen supports free 360° consistent exploration of the generated 3D scene with loop closure.
-- **Diverse Scenes Support** 🌈 : WorldGen supports both indoor and outdoor scenes, both realistic and unrealistic scenes in any style.
-- **Flexible Rendering** 📸 : WorldGen supports rendering at any resolution with any camera setting and trajectory in real-time.
+- **360° Free Exploration** 🧭 : Auroch Syna supports free 360° consistent exploration of the generated 3D scene with loop closure.
+- **Diverse Scenes Support** 🌈 : Auroch Syna supports both indoor and outdoor scenes, both realistic and stylized scenes in any style.
+- **Flexible Rendering** 📸 : Auroch Syna supports rendering at any resolution with any camera setting and trajectory in real-time.
 
 Two lines of code to generate a 3D scene in seconds
 ```python
@@ -67,7 +67,7 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 
 ## 📦 Installation
 
-Getting started with WorldGen is simple!
+Getting started with Auroch Syna is simple!
 
 ```bash
 # Clone the repository 
@@ -81,7 +81,7 @@ conda activate worldgen
 # Install torch and torchvision (with GPU support)
 pip3 install torch torchvision
 
-# Install worldgen
+# Install auroch_syna
 pip install .
 
 # Install DA-2 (360 depth estimation) -- use --no-deps to avoid version conflicts
@@ -125,12 +125,12 @@ After running the demo script, A local viser server will be launched at `http://
 
 ## 🎮 Advanced Usage
 
-### WorldGen API
-Quick start with WorldGen (mode in `t2s` or `i2s`) and generate your first 3D scene in seconds:  
+### Auroch Syna API
+Quick start with Auroch Syna (mode in `t2s` or `i2s`) and generate your first 3D scene in seconds:  
 - 📝 **Text to Scene:** Generate a 3D scene from a text prompt
 ```python
 # Example using the Python API
-from worldgen import WorldGen
+from auroch_syna import WorldGen
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 worldgen = WorldGen(mode="t2s", device=device, low_vram=False) # Set low_vram to True if your GPU VRAM is less than 24GB.
@@ -172,7 +172,7 @@ pip install iopaint --no-dependencies
 ---
 
 > [!Note]
-> **WorldGen** internally support generating a 3D scene from a 360° panorama image 📸, which related to how WorldGen works:
+> **Auroch Syna** internally supports generating a 3D scene from a 360° panorama image 📸; this feature accepts equirectangular (2:1) panorama inputs.
 > You can try it out if you happen to have a 360° panorama (equirectangular) image. Aspect ratio of the panorama image should be 2:1.
 ```python
  pano_image = Image.open("path/to/your/pano_image.jpg")
@@ -180,15 +180,15 @@ pip install iopaint --no-dependencies
 ```
 
 ## ⭐️ Star History
-Give a star to WorldGen if you like it!
+Give a star to Auroch Syna if you like it!
 [![Star History Chart](https://api.star-history.com/svg?repos=ZiYang-xie/WorldGen&type=Date)](https://www.star-history.com/#ZiYang-xie/WorldGen&Date)
 
 ## 📚 Citation
 If you find this project useful, please consider citing it as follows:
 ```bibtex
-@misc{worldgen2025ziyangxie,
+@misc{auroch_syna2025ziyangxie,
   author = {Ziyang Xie},
-  title = {WorldGen: Generate Any 3D Scene in Seconds},
+  title = {Auroch Syna: Cross-platform World‑Building Environment},
   year = {2025},
   publisher = {GitHub},
   journal = {GitHub repository},
