@@ -130,7 +130,7 @@ Quick start with WorldGen (mode in `t2s` or `i2s`) and generate your first 3D sc
 - 📝 **Text to Scene:** Generate a 3D scene from a text prompt
 ```python
 # Example using the Python API
-from worldgen import WorldGen
+from auroch_syna import WorldGen
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 worldgen = WorldGen(mode="t2s", device=device, low_vram=False) # Set low_vram to True if your GPU VRAM is less than 24GB.

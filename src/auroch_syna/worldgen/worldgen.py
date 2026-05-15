@@ -3,10 +3,9 @@ import numpy as np
 import cv2
 from PIL import Image
 import open3d as o3d
-from .pano_depth import build_depth_model, pred_pano_depth, pred_depth
-from .pano_seg import build_segment_model, seg_pano_fg
-from .pano_gen import build_pano_gen_model, gen_pano_image, build_pano_fill_model, gen_pano_fill_image
-from .pano_inpaint import build_inpaint_model, inpaint_image
+from .model_client import ModelClient
+from .pano_depth import pred_pano_depth, pred_depth
+from .pano_gen import gen_pano_image, gen_pano_fill_image
 from .utils.splat_utils import convert_rgbd_to_gs, SplatFile, mask_splat, merge_splats
 from .utils.general_utils import map_image_to_pano, resize_img, depth_match, convert_rgbd2mesh_panorama
 from typing import Optional, Union
@@ -22,33 +21,40 @@ class WorldGen:
             low_vram: Optional[bool] = None,
         ):
         self.device = device
-        self.depth_model = build_depth_model(device)
+        # Centralized model client for model construction (allows later
+        # redirection to external model services without changing callers)
+        self.model_client = ModelClient(device=device, low_vram=(low_vram or False))
+        self.depth_model = self.model_client.build_depth_model()
         self.mode = mode
         self.resolution = resolution
 
         # Set low_vram based on available VRAM if not specified
-        if low_vram is None:
-            total_vram = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-            low_vram = total_vram < 24
-            print(f"Detected {total_vram:.1f}GB VRAM, {'enabling' if low_vram else 'disabling'} low VRAM mode")
+        if low_vram is None and torch.cuda.is_available():
+            try:
+                total_vram = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                low_vram = total_vram < 24
+                print(f"Detected {total_vram:.1f}GB VRAM, {'enabling' if low_vram else 'disabling'} low VRAM mode")
+            except Exception:
+                low_vram = False
         self.low_vram = low_vram
 
+        # Build pano model via the model client
         if mode == 't2s':
-            self.pano_gen_model = build_pano_gen_model(lora_path=lora_path, device=device, low_vram=low_vram)
+            self.pano_gen_model = self.model_client.build_pano_gen_model(lora_path=lora_path, mode='t2s')
         elif mode == 'i2s':
-            self.pano_gen_model = build_pano_fill_model(lora_path=lora_path, device=device, low_vram=low_vram)
+            self.pano_gen_model = self.model_client.build_pano_gen_model(lora_path=lora_path, mode='i2s')
         else:
             raise ValueError(f"Invalid mode: {mode}, mode must be 't2s' or 'i2s'")
 
         self.use_sharp = use_sharp
         if use_sharp:
-            from .pano_sharp import build_sharp_model, predict_equirectangular
-            self.sharp_model = build_sharp_model(device=device)
+            from .pano_sharp import predict_equirectangular
+            self.sharp_model = self.model_client.build_sharp_model()
 
         self.inpaint_bg = inpaint_bg
         if inpaint_bg:
-            self.seg_processor, self.seg_model = build_segment_model(device)
-            self.inpaint_pipe = build_inpaint_model(device)
+            self.seg_processor, self.seg_model = self.model_client.build_segment_model()
+            self.inpaint_pipe = self.model_client.build_inpaint_model()
 
     def depth2gs(self, predictions) -> SplatFile:
         rgb = predictions["rgb"]

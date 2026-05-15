@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "worldgen"
+name = "auroch_syna"
 version = "0.1.0"
 authors = [
   { name="Ziyang Xie", email="ziyangxie01@gmail.com" },
@@ -43,4 +43,4 @@ dependencies = [
 where = ["src"] 
 
 [tool.setuptools.dynamic]
-version = {attr = "worldgen.__version__"} 
+version = {attr = "auroch_syna.__version__"}

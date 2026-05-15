@@ -5,7 +5,7 @@ import numpy as np
 from .utils.general_utils import pano_to_cube, cube_to_pano
 
 def build_inpaint_model(device: torch.device = 'cuda'):
-    from worldgen.models.inpaint_model import LaMa
+    from .models.inpaint_model import LaMa
     model = LaMa(device=device)
     return model
 

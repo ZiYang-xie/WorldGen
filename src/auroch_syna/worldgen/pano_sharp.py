@@ -17,14 +17,14 @@ from sharp.utils.gaussians import (
     unproject_gaussians,
 )
 
-from worldgen.utils.equirectangular import (
+from .utils.equirectangular import (
     extract_cubemap_from_equirectangular,
     get_cubemap_face_params,
     get_cubemap_extrinsics,
     rotate_quaternions,
 )
 
-from worldgen.utils.splat_utils import SplatFile
+from .utils.splat_utils import SplatFile
 
 DEFAULT_MODEL_URL = "https://ml-site.cdn-apple.com/models/sharp/sharp_2572gikvuh.pt"
 
