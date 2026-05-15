@@ -1,3 +1,10 @@
+"""LoRA weight loading and compatibility fixes for FLUX transformers.
+
+load_and_fix_lora fills in missing block keys with zeros so that the
+safetensors checkpoint is compatible with the full FLUX single/dual block
+count (29 blocks each).  compose_lora_with_fixes delegates to Nunchaku
+when available, or falls back to returning the first LoRA's state dict.
+"""
 import re
 from typing import Dict, Tuple, List
 
@@ -6,7 +13,7 @@ import safetensors.torch
 
 try:
     from nunchaku.lora.flux.compose import compose_lora as _nunchaku_compose_lora
-except Exception:
+except ImportError:
     _nunchaku_compose_lora = None
 
 
@@ -91,7 +98,7 @@ def compose_lora_with_fixes(lora_paths: List[Tuple[str, float]]) -> Dict[str, to
     fixed_loras = [load_and_fix_lora(path) for path, weight in lora_paths]
 
     if _nunchaku_compose_lora is None:
-        print("[WorldGen] nunchaku unavailable on macOS; using first fixed LoRA fallback.")
+        print("[Auroch Syna] nunchaku unavailable on this platform; using first fixed LoRA fallback.")
         if not fixed_loras:
             return {}
         first_state_dict, _weight = fixed_loras[0]

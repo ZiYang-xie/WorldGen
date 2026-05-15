@@ -1,9 +1,15 @@
+"""Semantic segmentation using OneFormer (ADE20K) for background detection.
+
+Provides build_segment_model, segment_image_oneformer (per-face),
+seg_pano (cubemap-decomposed panorama segmentation), and seg_pano_fg
+(foreground mask from semantics + depth).
+"""
 from PIL import Image
 import torch
 import argparse
 import numpy as np
 from transformers import OneFormerProcessor, OneFormerForUniversalSegmentation
-from .utils.general_utils import pano_to_cube, cube_to_pano
+from .utils.image_utils import pano_to_cube, cube_to_pano
 
 def build_segment_model(device: torch.device = 'cuda'):
     processor = OneFormerProcessor.from_pretrained("shi-labs/oneformer_ade20k_swin_large")
@@ -23,7 +29,8 @@ def segment_image_oneformer(processor, model, image: Image.Image):
     inputs = processor(images=image, task_inputs=["semantic"], return_tensors="pt").to(device)
     outputs = model(**inputs)
     predicted_seg_map = processor.post_process_semantic_segmentation(outputs, target_sizes=[original_size[::-1]])[0]
-    assert predicted_seg_map.max() <= 255, "Segmentation map only supports 255 unique values"
+    if predicted_seg_map.max() > 255:
+        raise ValueError("Segmentation map has more than 255 unique label values, which is not supported")
     predicted_seg_map = Image.fromarray(predicted_seg_map.cpu().numpy().astype(np.uint8))
     return predicted_seg_map
 
@@ -31,7 +38,8 @@ def segment_image_oneformer(processor, model, image: Image.Image):
 @torch.inference_mode()
 def seg_pano(processor, model, image: Image.Image):
     H, W = image.height, image.width
-    assert (H / W == 0.5),  "Input image aspect ratio is not 2:1. Is it a panorama?"
+    if abs(H / W - 0.5) > 0.01:
+        raise ValueError(f"Input image aspect ratio is not 2:1 (got {H}x{W}). Is it a panorama?")
     cube_face_res = H // 2
 
     print(f"Processing as panorama. Converting to cubemap (calculated face res: {cube_face_res}px)...")

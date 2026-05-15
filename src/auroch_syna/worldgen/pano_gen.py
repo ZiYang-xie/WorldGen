@@ -1,15 +1,22 @@
+"""FLUX-based panorama generation and inpainting pipelines.
+
+Provides build_pano_gen_model / build_pano_fill_model (text-to-scene and
+image-to-scene respectively) with optional Nunchaku low-VRAM quantisation,
+and inference helpers gen_pano_image / gen_pano_fill_image.
+"""
 import os
 import torch
 import tempfile
 from pathlib import Path
 from huggingface_hub import hf_hub_download
-from .models.flux_pano_gen_pipeline import FluxPipeline
-from .models.flux_pano_fill_pipeline import FluxFillPipeline
+from .device_utils import resolve_device, default_dtype
+from .diffusers_ext.flux_pano_gen_pipeline import FluxPipeline
+from .diffusers_ext.flux_pano_fill_pipeline import FluxFillPipeline
 try:
     from nunchaku import NunchakuFluxTransformer2dModel
     from nunchaku.utils import get_precision
     from nunchaku.lora.flux.compose import compose_lora
-except Exception:
+except ImportError:
     NunchakuFluxTransformer2dModel = None
 
     def get_precision():
@@ -20,83 +27,77 @@ except Exception:
 from .utils.lora_utils import compose_lora_with_fixes, load_and_fix_lora
 
 
-def build_pano_gen_model(lora_path=None, device="mps", low_vram=False):
+def build_pano_gen_model(lora_path=None, device=None, low_vram=False):
     """Build a panorama generation model with optional Nunchaku low VRAM support."""
+    device = resolve_device(device)
+    dtype = default_dtype(device)
     if lora_path is None:
-        lora_path = hf_hub_download(repo_id="LeoXie/WorldGen", filename=f"models--WorldGen-Flux-Lora/worldgen_text2scene.safetensors")
-    
+        lora_path = hf_hub_download(repo_id="LeoXie/WorldGen", filename="models--WorldGen-Flux-Lora/worldgen_text2scene.safetensors")
+
     if low_vram and NunchakuFluxTransformer2dModel is not None:
-        # Get precision and initialize Nunchaku transformer
         precision = get_precision()
         print(f"Using Nunchaku with {precision} precision")
         transformer = NunchakuFluxTransformer2dModel.from_pretrained(
             f"mit-han-lab/svdq-{precision}-flux.1-dev",
             offload=True
         )
-        # Initialize pipeline with Nunchaku transformer
         pipe = FluxPipeline.from_pretrained(
             "black-forest-labs/FLUX.1-dev",
             transformer=transformer,
-            torch_dtype=torch.bfloat16,
+            torch_dtype=dtype,
             device=device
         )
-        # Load and fix LoRA weights
         print(f"Loading LoRA weights from: {lora_path}")
         state_dict, _ = load_and_fix_lora(lora_path)
         transformer.update_lora_params(state_dict)
     else:
-        # Standard pipeline initialization
         pipe = FluxPipeline.from_pretrained(
             "black-forest-labs/FLUX.1-dev",
-            torch_dtype=torch.bfloat16,
+            torch_dtype=dtype,
             device=device
         )
-        # Load LoRA weights using standard diffusers method
         print(f"Loading LoRA weights from: {lora_path}")
         pipe.load_lora_weights(lora_path)
-    
-    if device == "cuda":
-        pipe.enable_model_cpu_offload() # Save VRAM
+
+    if device.type == "cuda":
+        pipe.enable_model_cpu_offload()
     pipe.enable_vae_tiling()
     return pipe
 
-def build_pano_fill_model(lora_path=None, device="mps", low_vram=False):
+def build_pano_fill_model(lora_path=None, device=None, low_vram=False):
     """Build a panorama fill model with optional Nunchaku low VRAM support."""
+    device = resolve_device(device)
+    dtype = default_dtype(device)
     if lora_path is None:
-        lora_path = hf_hub_download(repo_id="LeoXie/WorldGen", filename=f"models--WorldGen-Flux-Lora/worldgen_img2scene.safetensors")
-    
+        lora_path = hf_hub_download(repo_id="LeoXie/WorldGen", filename="models--WorldGen-Flux-Lora/worldgen_img2scene.safetensors")
+
     if low_vram and NunchakuFluxTransformer2dModel is not None:
-        # Get precision and initialize Nunchaku transformer
         precision = get_precision()
         print(f"Using Nunchaku with {precision} precision")
         transformer = NunchakuFluxTransformer2dModel.from_pretrained(
             f"mit-han-lab/svdq-{precision}-flux.1-fill-dev",
             offload=True
         )
-        # Initialize pipeline with Nunchaku transformer
         pipe = FluxFillPipeline.from_pretrained(
             "black-forest-labs/FLUX.1-Fill-dev",
             transformer=transformer,
-            torch_dtype=torch.bfloat16,
+            torch_dtype=dtype,
             device=device
         )
-        # Load and fix LoRA weights
         print(f"Loading LoRA weights from: {lora_path}")
         state_dict, _ = load_and_fix_lora(lora_path)
         transformer.update_lora_params(state_dict)
     else:
-        # Standard pipeline initialization
         pipe = FluxFillPipeline.from_pretrained(
             "black-forest-labs/FLUX.1-Fill-dev",
-            torch_dtype=torch.bfloat16,
+            torch_dtype=dtype,
             device=device
         )
-        # Load LoRA weights using standard diffusers method
         print(f"Loading LoRA weights from: {lora_path}")
         pipe.load_lora_weights(lora_path)
-    
-    if device == "cuda":
-        pipe.enable_model_cpu_offload() # Save VRAM
+
+    if device.type == "cuda":
+        pipe.enable_model_cpu_offload()
     pipe.enable_vae_tiling()
     return pipe
 

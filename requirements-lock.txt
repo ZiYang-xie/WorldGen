@@ -1,0 +1,23 @@
+# Dependency lock file — regenerate with:
+#   pip install -e ".[low-vram]" && pip freeze > requirements-lock.txt
+#
+# Git-pinned dependencies and known-good SHAs:
+#   viser       @ git+https://github.com/ZiYang-xie/viser.git
+#   utils3d     @ git+https://github.com/EasternJournalist/utils3d.git@3913c65d81e05e47b9f367250cf8c0f7462a0900
+#
+# Submodule SHAs (see .gitmodules):
+#   submodules/DA-2       — haodongli/DA-2 (modified for SphereViT API)
+#   submodules/ml-sharp   — Apple ML-Sharp (gated; requires separate install)
+#   submodules/viser      — ZiYang-xie/viser fork (double-sided mesh support)
+#   submodules/pytorch3d  — facebookresearch/pytorch3d
+#
+# To install for development (CUDA, Linux):
+#   conda create -n auroch python=3.11
+#   conda activate auroch
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+#   pip install -e ".[low-vram]"
+#   pip install -e submodules/DA-2 submodules/ml-sharp
+#
+# To install without Nunchaku (macOS / CPU):
+#   pip install -e .
+#   pip install -e submodules/DA-2

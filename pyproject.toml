@@ -32,15 +32,33 @@ dependencies = [
     "peft>=0.7.1",
     "open3d>=0.19.0",
     "trimesh>=4.6.1",
-    "nunchaku @ https://github.com/mit-han-lab/nunchaku/releases/download/v0.2.0/nunchaku-0.2.0+torch2.7-cp311-cp311-linux_x86_64.whl",
     "viser @ git+https://github.com/ZiYang-xie/viser.git", # Modified viser to show double-side texture mesh to better view the scene
     "timm>=1.0.15",
     "accelerate>=1.1.1",
     "utils3d @ git+https://github.com/EasternJournalist/utils3d.git@3913c65d81e05e47b9f367250cf8c0f7462a0900"
 ]
 
+[project.optional-dependencies]
+# Nunchaku provides quantized FLUX transformers for low-VRAM inference.
+# Only available for Linux x86_64 + CUDA; omit this extra on macOS / ARM.
+low-vram = [
+    "nunchaku @ https://github.com/mit-han-lab/nunchaku/releases/download/v0.2.0/nunchaku-0.2.0+torch2.7-cp311-cp311-linux_x86_64.whl ; sys_platform == 'linux' and platform_machine == 'x86_64'"
+]
+
 [tool.setuptools.packages.find]
-where = ["src"] 
+where = ["src"]
 
 [tool.setuptools.dynamic]
 version = {attr = "auroch_syna.__version__"}
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]  # line-length handled by formatter
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
