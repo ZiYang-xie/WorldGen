@@ -1,0 +1,20 @@
+name: Smoke import
+
+on: [push, pull_request]
+
+jobs:
+  smoke-import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Run lightweight import smoke test
+        run: |
+          python - <<'PY'
+          import importlib
+          mod = importlib.import_module('auroch_syna')
+          print('Imported', mod.__name__, 'version=', getattr(mod, '__version__', 'unknown'))
+          PY
