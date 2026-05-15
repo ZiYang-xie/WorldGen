@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "auroch_syna"
 version = "0.1.0"
 authors = [
-  { name="Ziyang Xie", email="ziyangxie01@gmail.com" },
+  { name="Carter Birchall", email="carter.birchall@gmail.com" },
 ]
 description = "A package for 3D scene generation 🌏"
 readme = "README.md"

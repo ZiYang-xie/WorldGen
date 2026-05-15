@@ -13,9 +13,12 @@
 
 </div>
 
-> Author 👨‍💻: [Ziyang Xie](https://ziyangxie.site/)
-> Contact Email 📧: [ziyangxie01@gmail.com](mailto:ziyangxie01@gmail.com)  
+> Author 👨‍💻: Carter Birchall
+> Contact Email 📧: [carter.birchall@gmail.com](mailto:carter.birchall@gmail.com)
 > Feel free to contact me for any questions or collaborations!
+>
+> Auroch Syna is a fork of [WorldGen](https://github.com/ZiYang-xie/WorldGen)
+> by Ziyang Xie, distributed under the Apache 2.0 license.
 
 ## 🌟 Introduction
 🌏 **Auroch Syna** can generate 3D scenes in seconds from text prompts and images.  It is a powerful tool for creating 3D environments and scenes for games, simulations, robotics, and virtual reality applications.  
@@ -184,11 +187,20 @@ Give a star to Auroch Syna if you like it!
 [![Star History Chart](https://api.star-history.com/svg?repos=ZiYang-xie/WorldGen&type=Date)](https://www.star-history.com/#ZiYang-xie/WorldGen&Date)
 
 ## 📚 Citation
-If you find this project useful, please consider citing it as follows:
+If you find this project useful, please cite both Auroch Syna and the
+upstream WorldGen work it is built on:
 ```bibtex
-@misc{auroch_syna2025ziyangxie,
-  author = {Ziyang Xie},
+@misc{auroch_syna2026birchall,
+  author = {Carter Birchall},
   title = {Auroch Syna: Cross-platform World‑Building Environment},
+  year = {2026},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+}
+
+@misc{worldgen2025ziyangxie,
+  author = {Ziyang Xie},
+  title = {WorldGen: Generate Any 3D Scene in Seconds},
   year = {2025},
   publisher = {GitHub},
   journal = {GitHub repository},
@@ -199,7 +211,14 @@ If you find this project useful, please consider citing it as follows:
 ---
 
 ## 🤝 Acknowledgements
-This project is built on top of the follows, please consider citing them if you find them useful:
+Auroch Syna is a fork of [WorldGen](https://github.com/ZiYang-xie/WorldGen)
+by Ziyang Xie. The original panorama→splat pipeline, FLUX LoRA training,
+and most of the per-stage code are upstream work; the Auroch Syna fork
+focuses on cross-platform packaging, MPS / low-VRAM support, and
+service-layer integration.
+
+This project is built on top of the following, please consider citing
+them if you find them useful:
 - [DA-2](https://github.com/EnVision-Research/DA-2)
 - [UniK3D](https://github.com/lpiccinelli-eth/UniK3D)
 - [Layerpano3D](https://github.com/3DTopia/LayerPano3D)

@@ -4,310 +4,477 @@ _Last updated: 2026-05-15_
 
 ## Summary
 
-Syna is the local fork of `WorldGen` — a Python ML pipeline that turns a text
-prompt or image into a 360° panorama, lifts that panorama to depth + Gaussian
-splats (or a triangle mesh), and serves the scene through a Viser web viewer.
-The codebase is a research prototype: monolithic Python, CUDA-first, heavy
-diffusers/transformers stack, no test suite, no typed interfaces between
-stages, and no service boundaries.
+Syna is the local fork of `WorldGen` — a Python ML pipeline that turns a
+text prompt or image into a 360° panorama, lifts that panorama to depth +
+Gaussian splats (or a triangle mesh), and serves the scene through a
+Viser web viewer. The codebase is a research prototype: monolithic
+Python, CUDA-first, heavy diffusers/transformers stack, no real test
+suite, no typed interfaces between stages, and no service boundaries.
 
-This document is now intentionally **non-concise**. It records concrete,
-file-grounded findings and a prioritized roadmap for turning the prototype
-into something that can (a) run reliably on non-CUDA hardware (Apple
-Silicon / MPS), (b) be embedded as a service inside the larger Auroch
-runtime, and (c) be safely iterated on by more than one person.
+This document is non-concise on purpose. It records concrete,
+file-grounded findings and a prioritized roadmap. Companion doc
+`ARCHITECTURE.md` covers the higher-level migration plan; this file
+focuses on what's actually wrong in the code today.
 
 ---
 
-## 1. Current state of the working tree
+## 0. Tree state and rebrand status (orient first)
 
-### 1.1 In-flight, uncommitted work
-
-`git status` shows ten modified files and a thicket of `*.before-*` backup
-files left by interactive edits:
+During the in-flight rebrand, sources were moved:
 
 ```
-M  README.md, demo.py, src/worldgen/worldgen.py,
-   src/worldgen/pano_gen.py, src/worldgen/pano_inpaint.py,
-   src/worldgen/pano_sharp.py, src/worldgen/utils/lora_utils.py,
-   src/worldgen/models/flux_pano_gen_pipeline.py,
-   src/worldgen/models/flux_pano_fill_pipeline.py
-?? src/worldgen/model_client.py
-?? demo.py.before-mps-fix.20260514-202023
-?? src/worldgen/pano_gen.py.before-full-nunchaku-disable.20260514-201850
-?? src/worldgen/pano_gen.py.before-nunchaku-fallback.20260514-201756
-?? src/worldgen/utils/lora_utils.py.before-nunchaku-fallback.20260514-201555
-?? src/worldgen/utils/lora_utils.py.broken.20260514-201640
-D  LICENSE, assets/logo.png
+src/worldgen/                  →  src/auroch_syna/worldgen/
+worldgen.egg-info/             →  src/auroch_syna.egg-info/
+new shim                       →  src/auroch_syna/__init__.py
+new architecture doc           →  ARCHITECTURE.md
+new CI workflow                →  .github/workflows/smoke-import.yml
 ```
 
-Action items:
+The two rebrand commits are landed (`1ca385c`, `259de37`). Outstanding:
 
-1. **Delete the `*.before-*` and `*.broken.*` backup files.** Use git for
-   history; leaving them in the tree is noise and they will eventually get
-   committed by accident. (`git clean -nx '*.before-*' '*.broken.*'` to
-   preview.)
-2. **Investigate the deletion of `LICENSE` and `assets/logo.png`.** The
-   README still references both. Either restore them or update the README
-   in the same commit.
-3. **Land the in-flight MPS / Nunchaku fallback work as a small series of
-   focused commits** rather than one mega-commit, so the diff is reviewable.
+- **README still half-says "WorldGen"** (only the H1 and one section
+  heading were renamed; bullets at `README.md:23,26,28,...` still talk
+  about WorldGen). Either complete the rename or revert the partial one
+  — half-renamed docs are worse than either.
+- **Five `*.before-*` / `*.broken.*` backup files survived the move**
+  and now live under `src/auroch_syna/worldgen/...` plus `demo.py.before-mps-fix...`
+  in repo root. Delete them.
+- `.gitignore` does not match `*.before-*` or `*.broken.*`. Add those
+  patterns so this class of clutter can't be committed by accident.
+- `submodules/pytorch3d` is registered in `.gitmodules` but never
+  checked out (`git submodule status` shows no entry for it at all,
+  only DA-2 / viser / ml-sharp). README does `pip install
+  git+https://github.com/facebookresearch/pytorch3d.git` directly, so
+  the submodule entry is dead weight — drop it from `.gitmodules`.
+- `submodules/ml-sharp` has a recorded SHA but is not checked out
+  (status line starts with `-`). README tells users to
+  `pip install -e submodules/ml-sharp`, which silently fails on a
+  fresh clone. Either init the submodule in setup instructions or
+  change the install line to a URL.
+- `submodules/DA-2` and `submodules/viser` are checked out but drifted
+  from their recorded SHAs (`m` flag in git status). Either commit the
+  bumped SHAs or `git submodule update --init` to reset.
 
-### 1.2 Broken re-export package
+---
 
-`src/auroch_syna/` exists as an empty directory (no `__init__.py`), yet
-`demo.py:13` and the README's Python examples import from it:
+## 1. The `auroch_syna` shim has bugs of its own
+
+`src/auroch_syna/__init__.py` cleverly injects the old `worldgen/`
+subdirectory onto `__path__` so existing `from .pano_depth import ...`
+style imports still resolve during migration. Issues:
+
+1. **Mixed tabs and spaces.** Lines 19–20 use tabs; the rest of the
+   file uses spaces. Python 3 will reject this if a future edit lands
+   on a tab-vs-space inconsistency. Normalize to spaces.
+2. **Dead fallback path** (`__init__.py:34-35`): the `except`
+   branch tries `import_module("worldgen.utils.splat_utils")`, but
+   `worldgen` is no longer a top-level package after the rebrand —
+   it's `auroch_syna.worldgen`. So the fallback can only ever raise
+   `ModuleNotFoundError`. Either delete it or fix the path to
+   `auroch_syna.worldgen.utils.splat_utils`.
+3. **Bare `except Exception:`** at line 34 will swallow real bugs
+   (e.g., a broken `splat_utils` will mask itself). Narrow to
+   `ImportError` at minimum.
+4. **`SplatFile` is imported from `auroch_syna.utils.splat_utils`
+   first**, but that path doesn't exist either — the file is at
+   `auroch_syna.worldgen.utils.splat_utils`. So in practice the lazy
+   loader always hits the broken fallback. **This means
+   `from auroch_syna import SplatFile` is currently broken** —
+   `demo.py:13` imports `SplatFile` from there. Verify by running
+   `python -c "from auroch_syna import SplatFile"`.
+
+Fix: collapse the lazy loader to a single, correct path:
 
 ```python
-from auroch_syna import SplatFile, WorldGen
+def __getattr__(name: str):
+    if name == "WorldGen":
+        from auroch_syna.worldgen.worldgen import WorldGen
+        return WorldGen
+    if name == "SplatFile":
+        from auroch_syna.worldgen.utils.splat_utils import SplatFile
+        return SplatFile
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 ```
 
-This means **`python demo.py` does not currently import cleanly from a
-fresh checkout.** The previous REPORT.md claimed this re-export was added,
-but only the directory was created — the actual module is missing.
+---
 
-Fix: add `src/auroch_syna/__init__.py` that re-exports the public surface
-from `worldgen`:
+## 2. Real correctness bugs found in the code
+
+### 2.1 `flux_pano_fill_pipeline.py:714` — `NameError` on the `latents` early-return path
 
 ```python
-# src/auroch_syna/__init__.py
-from worldgen.worldgen import WorldGen
-from worldgen.utils.splat_utils import SplatFile
-
-__all__ = ["WorldGen", "SplatFile"]
+def prepare_latents(self, image, timestep, batch_size, num_channels_latents,
+                    height, width, dtype, device, generator, latents=None):
+    ...
+    if latents is not None:
+        return latents.to(device=device, dtype=dtype), latent_image_ids
+    # latent_image_ids is computed below this line, never above
 ```
 
-…and add `auroch_syna` to `[tool.setuptools.packages.find]` (it should be
-picked up automatically since `where = ["src"]`, but verify with
-`pip install -e . && python -c "import auroch_syna"`).
+`latent_image_ids` is never bound before the `if latents is not None`
+branch returns it, and it is not a parameter. Any caller that passes a
+non-`None` `latents` will get `NameError`. Today no internal caller
+does, which is why it hasn't blown up — but anyone composing the
+pipeline (e.g. for img2img-style flows) will hit this. Fix: either
+compute `latent_image_ids` before the guard, or remove the early-return
+and let the normal path execute.
 
-### 1.3 Package name vs. project name drift
+### 2.2 `lora_utils.py:90-100` — silent LoRA dropping on macOS
 
-- `pyproject.toml` still declares `name = "worldgen"` and
-  `version = {attr = "worldgen.__version__"}`.
-- The README is titled **WorldGen**.
-- The repo on disk is **Syna**, the intended public name is
-  **Auroch Syna**, and the new import path is **auroch_syna**.
+```python
+def compose_lora_with_fixes(lora_paths):
+    fixed_loras = [load_and_fix_lora(path) for path, weight in lora_paths]
+    if _nunchaku_compose_lora is None:
+        print("[WorldGen] nunchaku unavailable on macOS; using first fixed LoRA fallback.")
+        if not fixed_loras:
+            return {}
+        first_state_dict, _weight = fixed_loras[0]
+        return first_state_dict
+    return _nunchaku_compose_lora(fixed_loras)
+```
 
-Pick one of two paths and execute it end-to-end in a single PR:
+When Nunchaku isn't available, **all LoRAs after the first are
+silently discarded and the first LoRA's weight is ignored**. The
+caller has no way to know. At minimum this should `warnings.warn`
+loudly and include the count/identities of the dropped LoRAs. Better:
+implement an actual diffusers-native compose fallback so multi-LoRA
+prompts behave the same on every platform.
 
-- **Option A (lightweight):** keep the distribution as `worldgen`, keep
-  `worldgen` as the canonical import, and treat `auroch_syna` purely as a
-  thin alias shim. Document the alias relationship in the README.
-- **Option B (full rebrand):** rename the package to `auroch_syna`, move
-  `src/worldgen/` → `src/auroch_syna/`, update every import, update
-  `pyproject.toml`, regenerate `worldgen.egg-info`, and have
-  `worldgen` itself become the back-compat shim (with a `DeprecationWarning`).
+### 2.3 `pano_depth.py:44-92` — `pred_pano_depth` and `pred_depth` are byte-identical
 
-Option A is much cheaper and is the recommended near-term move. Defer
-Option B until the API surface is actually stable.
+Both functions have the exact same body (`np.array → permute → autocast
+→ model → squeeze → normalize → pano_unit_rays`). One of them is dead
+code, or the intent was different (e.g. `pred_depth` shouldn't compute
+`pano_unit_rays` for non-pano inputs) and was lost during a refactor.
+Decide which it is. If they really should be identical, delete one and
+have the other be an alias.
+
+### 2.4 `pano_seg.py:11` — debug remnant
+
+```python
+torch.set_float32_matmul_precision(['high', 'highest'][0])
+```
+
+The `['high', 'highest'][0]` is a leftover from someone toggling
+between two values. Replace with a plain string and decide
+intentionally which precision you want for OneFormer inference.
+
+### 2.5 Fragile float equality (two files)
+
+```python
+assert (H / W == 0.5), "Input image aspect ratio is not 2:1. Is it a panorama?"
+```
+
+Appears in **both** `pano_seg.py:34` and `pano_inpaint.py:22`. Exact
+float equality on `H/W` will reject perfectly valid panoramas like
+`(2049, 1024)` or `(2048, 1023)` that round into floats slightly off
+0.5. Use `abs(H/W - 0.5) < 1e-3` or `H * 2 == W` directly.
+
+### 2.6 `splat_utils.py:124-149` — `mask_splat` assumes unfiltered image order
+
+`mask_splat` does `centers.reshape(H, W, 3)[valid_mask]`, treating the
+splat array as if it were still in row-major image order. But
+`convert_rgbd_to_gs` at lines 71-75 **filters out pixels where
+`distance <= dis_threshold`** before producing the splat. As soon as
+the filter drops any pixel, the array is no longer `H*W` long and the
+reshape either crashes (`RuntimeError: shape '[H, W, 3]' is invalid`)
+or, if `H*W` happens to still divide evenly, silently produces
+garbage. It only "works" today because `dis_threshold=0.0` and DA-2
+returns strictly positive distances. Fix options:
+
+- Carry the original `valid_mask` on the `SplatFile` and intersect it
+  with the caller's mask before reshape.
+- Stop filtering in `convert_rgbd_to_gs` and use opacity/scale=0 for
+  invalid pixels instead, so the shape is stable.
+
+### 2.7 `splat_utils.py:93,97,99` — deprecated `torch.cross` calls
+
+`torch.cross(up, valid_rays)` (and two more) omit the `dim=` argument.
+Modern PyTorch (≥2.0) emits `UserWarning: Using torch.cross without
+specifying the dim arg is deprecated`, and is slated to make this an
+error. Always pass `dim=1` (or `dim=-1`) explicitly.
+
+### 2.8 `general_utils.py:148` — device-mismatch trap in `map_image_to_pano`
+
+```python
+def map_image_to_pano(predictions, ..., device: torch.device = 'cuda'):
+    rgb_src = predictions["rgb"].float()      # lives on predictions' device
+    ...
+    rays_pano = pano_unit_rays(map_h, map_w, device)  # uses parameter device
+    ...
+    rays_hole = rays_pano[hole_mask]          # cross-device indexing
+```
+
+Every other tensor in the function lives on `rgb_src.device`, but
+`rays_pano` is built on the `device` *parameter* (default `'cuda'`).
+A caller who passes an MPS or CPU input but doesn't override
+`device=` gets a cross-device indexing crash at line 154 or 170.
+Drop the `device` parameter and use `rgb_src.device` throughout, or
+plumb `device` through every allocation.
+
+### 2.9 `general_utils.py:184-188` — `depth_match` silently mutates its input
+
+```python
+def depth_match(init_pred, bg_pred, mask) -> dict:
+    ...
+    bg_pred["distance"] *= scale     # in-place
+    return bg_pred                    # returns the same dict
+```
+
+The caller's `bg_pred` dict is modified in place. Calling
+`depth_match` twice on the same dict double-scales the distances.
+Either deep-copy at the top, return a new dict, or rename
+`depth_match_inplace` so the mutation is explicit.
 
 ---
 
-## 2. Architecture observations
+## 3. Portability / device-handling issues
 
-### 2.1 Pipeline shape
+The earlier `__init__` defaults and MPS handling have not been
+unified. Concrete callsites still hardcoding `cuda`:
 
-`WorldGen.generate_world` (`src/worldgen/worldgen.py:134`) is a 3-stage
-pipeline:
+| File | Line | What | Fix |
+|------|------|------|-----|
+| `pano_depth.py` | 38 | `def build_depth_model(device: torch.device = 'cuda')` | Use `resolve_device(None)` helper |
+| `pano_seg.py` | 8 | `def build_segment_model(device: torch.device = 'cuda')` | Same |
+| `pano_inpaint.py` | 7 | `def build_inpaint_model(device: torch.device = 'cuda')` | Same |
+| `models/inpaint_model.py` | 22 | `LaMa(device='cuda')` | Same |
+| `worldgen.py` | 20 | `device: torch.device = 'cuda'` | Same |
+| `pano_gen.py` | 23, 63 | `device="mps"` *(!)* default | Pick one default; document why |
 
-1. **Panorama generation** — `generate_pano` → FLUX.1-dev (`t2s`) or
-   FLUX.1-Fill-dev (`i2s`) with a WorldGen LoRA.
-2. **Depth estimation** — `pred_pano_depth` using DA-2 (recently swapped
-   in for UniK3D, per `README.md:56`).
-3. **Lift to scene** — either `convert_rgbd_to_gs` (Gaussian splats) or
-   `convert_rgbd2mesh_panorama` (triangle mesh). Optional `use_sharp`
-   path runs `predict_equirectangular` from ml-sharp.
+Also, `pano_depth.py:50,75` does `with torch.autocast(model.device.type)`
+which **raises on CPU** (`torch.autocast` only supports `'cuda'`,
+`'cpu'` since recent torch — verify your minimum torch version — and
+`'mps'`, `'xpu'`). Wrap in a guard that no-ops on unsupported devices.
 
-Optional 4th stage: `inpaint_bg_splat` runs OneFormer segmentation +
-LaMa inpainting to fill behind foreground objects.
+`pano_depth.py:96` references `data/background/timeless_desert.png` from
+its `__main__` block; `data/` is in `.gitignore` so this never works
+on any fresh checkout. Either ship a tiny test fixture or delete the
+`__main__` block.
 
-This shape is fine. The problems are at the seams between stages, not in
-the stages themselves.
+`pano_sharp.py` hardcodes an Apple CDN URL for the Sharp weights with
+no fallback or checksum. If Apple rotates the URL, every fresh install
+breaks silently. Mirror the weight on the WorldGen HuggingFace repo
+and pin a sha256.
 
-### 2.2 The `ModelClient` is the right idea but is half-built
+`pano_sharp.py:9-18` **imports `sharp.*` at module top level.** Any
+code path that touches `pano_sharp` (e.g. `worldgen.py:51,91` does
+`from .pano_sharp import predict_equirectangular` inside a
+`use_sharp=True` branch — fine — but `model_client.py:70` does
+`from .pano_sharp import build_sharp_model` which triggers the module
+import) requires ml-sharp installed even when the feature is
+disabled. Defer the `sharp.*` imports into `build_sharp_model` and
+`predict_*` function bodies.
 
-`src/worldgen/model_client.py` introduces a small wrapper that lazily
-builds and caches each sub-model. This is the correct seam for later
-moving model execution out-of-process. But today:
+`pano_sharp.py:75,79-84` builds small tensors on CPU implicitly
+(`torch.tensor([f_px / face_size]).float().to(device)`,
+`torch.tensor([[...]], dtype=...).to(device)`), then ships them.
+Construct directly on `device` with explicit `dtype` instead.
 
-- It is **only used inside `WorldGen.__init__`** — every other call site
-  (`pred_pano_depth`, `gen_pano_image`, `gen_pano_fill_image`,
-  `predict_equirectangular`) still receives the raw pipeline object and
-  calls into it directly. There is no abstraction over *inference*, only
-  over *construction*.
-- It hides imports inside methods to defer side effects, which is good,
-  but the cache key for `build_pano_gen_model` (`f"pano_{mode}_{lora_path}"`)
-  collides if two callers pass `lora_path=None` for different modes —
-  wait, it doesn't, because `mode` is in the key. Fine. But document the
-  contract: two `WorldGen` instances created with different `low_vram`
-  values will silently share a cached model with the first instance's
-  flag, because `low_vram` is on the `ModelClient`, not in the cache key.
+`pano_inpaint.py:36` writes `pano_inpainted_image.png` to the
+**current working directory** unconditionally — should be an explicit
+argument, defaulting to `None` (no save).
 
-Recommended evolution:
-
-1. Define a `ModelHandle` protocol with `.infer(inputs) -> outputs` so
-   that callers don't depend on the concrete pipeline class.
-2. Add an `OutOfProcessModelClient` implementation that speaks the same
-   protocol but proxies to a sidecar process via shared memory or
-   gRPC/UDS. This is the prerequisite for embedding Syna inside a host
-   app that owns its own event loop and GPU context.
-3. Move device/precision/low-VRAM into a `RuntimeConfig` dataclass that
-   is passed at construction time, instead of being scattered across
-   `device=`, `low_vram=`, `torch_dtype=` arguments at every call.
-
-### 2.3 Nunchaku fallback is brittle
-
-`src/worldgen/pano_gen.py:8-19` wraps the `nunchaku` import in a broad
-`except Exception:` and stubs out `NunchakuFluxTransformer2dModel`,
-`get_precision`, and `compose_lora`. The fallback for `get_precision`
-returns `"bf16"`, which is then **used in cache paths and model IDs**
-elsewhere — make sure no code path tries to actually instantiate a
-Nunchaku transformer on a platform where it failed to import (it doesn't
-today, because the `low_vram and NunchakuFluxTransformer2dModel is not
-None` guard at line 28 handles it — but the guard must stay).
-
-The `pyproject.toml` dependency line pins Nunchaku to a Linux x86_64
-wheel:
-
-```
-nunchaku @ https://github.com/mit-han-lab/nunchaku/releases/download/v0.2.0/nunchaku-0.2.0+torch2.7-cp311-cp311-linux_x86_64.whl
-```
-
-This makes `pip install .` **fail outright** on macOS / Apple Silicon.
-Fix by making it an optional extra:
-
-```toml
-[project.optional-dependencies]
-lowvram = [
-  "nunchaku @ https://.../nunchaku-0.2.0+torch2.7-cp311-cp311-linux_x86_64.whl ; platform_system == 'Linux' and platform_machine == 'x86_64'",
-]
-```
-
-Then `pip install .[lowvram]` on Linux, plain `pip install .` everywhere
-else. The runtime fallback in `pano_gen.py` already handles the missing
-import gracefully.
-
-### 2.4 Device handling is inconsistent
-
-- `build_pano_gen_model` defaults `device="mps"` but
-  `WorldGen.__init__` defaults `device='cuda'`. `demo.py` picks
-  `cuda if available else cpu` (note: not `mps`).
-- `pipe.enable_model_cpu_offload()` is only called when `device == "cuda"`,
-  but the equivalent for MPS (manual `.to("mps")` + careful dtype
-  selection) is not done. On MPS, `bfloat16` is not fully supported in
-  many ops — `float16` is usually safer.
-- `torch.Generator("cpu")` is hardcoded in `gen_pano_image` — that's
-  actually correct for reproducibility across devices, but worth a
-  comment so nobody "fixes" it.
-
-Action: introduce a `resolve_device(preferred: str | None) -> torch.device`
-helper that picks `cuda > mps > cpu` and a `default_dtype(device)` helper
-that picks `bfloat16` on CUDA, `float16` on MPS, `float32` on CPU. Use
-both consistently.
-
-### 2.5 No test suite, no CI
-
-There are zero tests in the repo. For an ML pipeline that takes minutes
-per run and downloads multi-GB checkpoints, end-to-end tests are
-impractical — but **unit tests for the pure-Python utilities are very
-practical** and currently missing:
-
-- `quaternion_slerp` in `demo.py:17` — pure numpy, trivially testable.
-- `map_image_to_pano`, `resize_img`, `depth_match`,
-  `convert_rgbd2mesh_panorama` in `utils/general_utils.py`.
-- `mask_splat`, `merge_splats`, `convert_rgbd_to_gs` in
-  `utils/splat_utils.py`.
-
-A minimal `pytest` setup plus a GitHub Actions job that runs `ruff check`
-+ `pytest tests/unit` on every PR would catch the most common regressions
-(import errors, signature drift, numpy/torch dtype mistakes) without
-needing a GPU runner.
-
-### 2.6 Submodule hygiene
-
-`git status` shows `submodules/DA-2` and `submodules/viser` as
-modified-but-not-committed (`m` flag, not `M`), meaning the submodule
-checkouts have drifted from the recorded SHAs. Decide whether the drift
-is intentional (then bump the recorded SHA) or accidental (then
-`git submodule update --init`). Leaving them drifted means every fresh
-clone gets a different build than the developer.
+`models/inpaint_model.py:6-10` points `LAMA_MODEL_URL` at
+`github.com/Sanster/models/releases/...` (a third-party
+redistribution mirror) by default. If that mirror disappears, every
+inpaint install silently breaks. Pin a primary + fallback, or
+self-host on the WorldGen HF repo with a checksum.
 
 ---
 
-## 3. Cross-platform / runtime concerns
+## 4. Architectural smells (not bugs, but load-bearing tech debt)
 
-The original audit framed Syna as needing a "native deterministic core
-(Rust/C++, wgpu + ECS), ML services, and adapter layers." That is the
-right long-term shape if Syna becomes a product, but it is **not the
-right next step** — there is no native runtime to integrate with yet,
-and the Python pipeline is still where 100% of the iteration happens.
+### 4.1 `ModelClient` only wraps construction, not inference
 
-A more pragmatic ladder:
+`src/auroch_syna/worldgen/model_client.py` lazily builds and caches
+each sub-model. That's the right seam, but every downstream call site
+still receives the raw pipeline object and calls `pipe(...)` directly.
+There is no abstraction over **inference**, which is the part that
+would actually need to change for an out-of-process model server.
 
-| Stage | Goal | Effort |
-|-------|------|--------|
-| 0 (now) | Fix broken imports, make `pip install` work on macOS, land in-flight commits | days |
-| 1 | `ModelHandle` protocol; out-of-process model server (single Python process, gRPC) | 1–2 weeks |
-| 2 | Stable wire format for panorama + depth + splats (protobuf or CBOR) so non-Python clients can consume the output | 1 week |
-| 3 | Adapter that lets a host app (Swift/Rust) call into the model server and get back a streaming splat | 2–3 weeks |
-| 4 | Native renderer (wgpu) consuming the splat stream; Python only generates, native renders | months |
+Define a `ModelHandle` protocol with `.infer(inputs) -> outputs` and
+make `ModelClient` return handles, not raw pipelines. Then an
+`OutOfProcessModelClient` can be a drop-in.
 
-Stages 0–2 are unambiguously worth doing. Stage 3+ should wait until
-there's a concrete host app asking for the API.
+Also, the cache key for `build_pano_gen_model` includes `lora_path` and
+`mode` but not `low_vram` or `device` — both of which live on the
+`ModelClient` instance. So if you ever create two clients with
+different settings, the second one wins silently because the
+underlying cache is local to its own instance. That's fine today
+(only one client per process) but should be documented in the
+docstring before it surprises someone.
+
+### 4.2 LoRA "fix" logic is suspicious
+
+`lora_utils.py:75-85` walks `range(29)` for both `single_transformer_blocks`
+and `transformer_blocks` and stuffs `torch.zeros(shape)` into every
+missing entry. The `29` is FLUX.1-dev–specific magic. The fact that
+this is needed at all suggests the LoRA was trained against a
+checkpoint with a different block count, or that the diffusers loader
+fails to materialize zero-rank blocks. Either way: (a) `29` should be
+derived from the loaded model's actual block count, not hardcoded, and
+(b) `torch.zeros(shape)` uses default dtype (float32) and default
+device (CPU), which will require an implicit upcast on every block —
+match the dtype of the existing LoRA tensors instead.
+
+### 4.3 FLUX pipelines monkey-patch the VAE inside the inference loop
+
+In `models/flux_pano_gen_pipeline.py` (and the fill variant), two
+helper functions (`_decode`, `tiled_decode`) are defined locally
+inside `__call__` and dynamically bound to `self.vae` with
+`__get__()`. This is unmaintainable: undebuggable, untestable,
+re-binds on every call. Promote them to real subclass methods on a
+`PanoFluxVAE` mixin, or to standalone module-level functions that
+take the VAE as a parameter.
+
+The same files re-pack and re-unpack latents on every denoising step
+inside the loop. Many of those reshape+permute ops can be hoisted
+outside the loop and reused across steps.
+
+### 4.4 No tests, no linter, weak CI
+
+The new `.github/workflows/smoke-import.yml` is a useful first step
+but it does **not run `pip install`** — it only imports the shim,
+which uses `__getattr__` to defer all heavy imports. So the CI
+currently catches syntax errors in `__init__.py` and nothing else.
+
+Three immediate upgrades:
+
+1. **Actually install the package** in CI (`pip install .` or
+   `pip install -e .`) so import-side-effect errors and dependency
+   resolution failures are caught. Skip `nunchaku` via the optional
+   extra (see §3 of previous draft) so the install works on Linux
+   runners without GPU.
+2. **Add `ruff check`** with a minimal config (catch unused imports,
+   undefined names — would have caught §2.1 above).
+3. **Add a pytest job** with a `tests/unit/` directory containing
+   tests for the pure-Python utilities (`quaternion_slerp`,
+   `pano_unit_rays`, `resize_img`, `depth_match`, `mask_splat`,
+   `merge_splats`). These don't need a GPU.
+
+### 4.5 Diagnostics use `print()` everywhere
+
+`pano_sharp.py:160,162,185`, `pano_gen.py:31,44,55,95,131`,
+`pano_seg.py:37`, `pano_inpaint.py:26`, and `worldgen.py:36` all use
+bare `print()` for diagnostic output. Callers (including the Viser
+server, future CLI, future model service) have no way to silence or
+redirect this. Standardize on a single `logging.getLogger(__name__)`
+per module and let callers configure verbosity.
+
+### 4.6 `worldgen/__init__.py` is missing `SplatFile`
+
+`src/auroch_syna/worldgen/__init__.py` only exposes `WorldGen`. The
+shim's lazy loader for `SplatFile` (§1.4) needs a stable path —
+add `from .utils.splat_utils import SplatFile` here so both the shim
+and any user doing `from auroch_syna.worldgen import SplatFile`
+work.
+
+### 4.7 Magic constants in `splat_utils.py`
+
+- Line 27: `(self.rgbs - 0.5) / 0.28209479177387814` — this is
+  `1 / (2 * sqrt(pi))`, the SH degree-0 normalization. Name it
+  `SH_C0 = 0.28209479177387814` at module top with a comment.
+- Line 79: `theta = torch.linspace(0, torch.pi, H, device=device)` —
+  uses pixel-edge sampling, but `pano_unit_rays` in
+  `general_utils.py:84-95` uses pixel-center sampling
+  (`(arange + 0.5) / H`). The two are half a pixel apart for the
+  same panorama. This produces a small but systematic bias in the
+  per-pixel covariance scale. Either unify to pixel-center sampling
+  or document the discrepancy.
+
+### 4.8 `ARCHITECTURE.md` overlaps with this file
+
+`ARCHITECTURE.md` (newly committed) restates the "split runtime / ML
+service / adapters" thesis and lists immediate action items that
+duplicate some of §0 here. Decide which doc owns which scope:
+
+- **REPORT.md** (this file): findings, bugs, near-term punch list.
+- **ARCHITECTURE.md**: target architecture, migration plan, design
+  primitives.
+
+…and have each link to the other. Right now both try to enumerate
+"immediate action items" and they will drift.
 
 ---
 
-## 4. Concrete near-term punch list
+## 5. Concrete near-term punch list
 
 In priority order, smallest-first:
 
-1. **Restore `auroch_syna` re-export** so `demo.py` runs.
-   Files: `src/auroch_syna/__init__.py` (new, ~5 lines).
-2. **Delete `*.before-*` and `*.broken.*` backups** from the tree.
-3. **Move Nunchaku to a platform-conditional optional extra** in
-   `pyproject.toml` so non-Linux installs succeed.
-4. **Add `resolve_device` / `default_dtype` helpers** and route all of
-   `worldgen.py`, `pano_gen.py`, `pano_depth.py`, `pano_sharp.py`,
-   `pano_inpaint.py` through them.
-5. **Restore or replace `LICENSE` and `assets/logo.png`**, or update the
-   README to match reality.
-6. **Add minimal `pytest` + `ruff` CI** with unit tests for the pure
-   utility functions listed in §2.5.
-7. **Bump or reset submodule SHAs** for `DA-2` and `viser` so fresh
-   clones are deterministic.
-8. **Document the `ModelClient` contract** (caching semantics around
-   `low_vram` / `device`) in its docstring.
-9. **Introduce a `RuntimeConfig` dataclass** and migrate one call site
-   to it as a pilot before propagating.
-10. **Sketch the `ModelHandle` protocol** in a design doc before writing
-    any out-of-process plumbing.
+1. **Fix the broken `SplatFile` re-export** (`auroch_syna/__init__.py`)
+   so `from auroch_syna import SplatFile` works, **and** export
+   `SplatFile` from `auroch_syna/worldgen/__init__.py`. (§1.4, §4.6)
+2. **Fix `flux_pano_fill_pipeline.py:714` NameError** on the
+   `latents is not None` early-return. (§2.1)
+3. **Fix the silent multi-LoRA drop** in `compose_lora_with_fixes`
+   (or at minimum, `warnings.warn` instead of `print`). (§2.2)
+4. **Fix deprecated `torch.cross` calls** in `splat_utils.py:93,97,99`
+   by passing `dim=1`. (§2.7)
+5. **Delete `pred_depth` or differentiate it from `pred_pano_depth`**.
+   (§2.3)
+6. **Remove the `['high', 'highest'][0]` debug remnant.** (§2.4)
+7. **Fix `H/W == 0.5` float-equality check** in `pano_seg.py:34` and
+   `pano_inpaint.py:22`. (§2.5)
+8. **Fix `depth_match` in-place mutation** or rename it. (§2.9)
+9. **Fix `map_image_to_pano` device-mismatch trap** (drop the
+   `device` parameter or thread it through every allocation). (§2.8)
+10. **Audit `mask_splat`'s reshape assumption** against
+    `convert_rgbd_to_gs`'s filter. (§2.6)
+11. **Delete the 5 `*.before-*` / `*.broken.*` backup files** and add
+    those patterns to `.gitignore`.
+12. **Complete or revert the README rename.**
+13. **Drop `submodules/pytorch3d` from `.gitmodules`** (it's installed
+    via pip URL anyway), and decide whether `submodules/ml-sharp`
+    should be checked out by default or scrubbed from `.gitmodules`
+    in favor of an opt-in install path.
+14. **Defer `sharp.*` imports** inside `pano_sharp.py` so the module
+    is importable without ml-sharp installed. (§3)
+15. **Make the CI workflow actually install the package** and run
+    `ruff check`. (§4.4)
+16. **Add `resolve_device` / `default_dtype` helpers** and route every
+    `device='cuda'` default through them. (§3)
+17. **Mirror Sharp + LaMa weights** on HuggingFace with pinned
+    sha256s so `pano_sharp.py` and `inpaint_model.py` aren't dependent
+    on Apple's CDN / a third-party GitHub mirror. (§3)
+18. **Switch all `print()` diagnostics to `logging`.** (§4.5)
+19. **Promote FLUX monkey-patched VAE methods** to real subclass
+    methods (`flux_pano_gen_pipeline.py:785,807,871-872`). (§4.3)
+20. **Name the `SH_C0` constant** in `splat_utils.py:27` and unify
+    pixel-center sampling between `splat_utils.py:79` and
+    `general_utils.py:84-95`. (§4.7)
+21. **Sketch a `ModelHandle` protocol** before writing out-of-process
+    plumbing. (§4.1)
+22. **Add `tests/unit/`** with tests for the pure utilities. (§4.4)
 
 ---
 
-## 5. Files inspected (key)
+## 6. Files inspected (key)
 
 - `demo.py` — Viser viewer + CLI entry point.
 - `pyproject.toml` — distribution metadata, dependency pins.
 - `README.md` — public-facing docs.
-- `src/worldgen/__init__.py`, `src/worldgen/worldgen.py` —
+- `ARCHITECTURE.md` — sibling doc.
+- `.github/workflows/smoke-import.yml` — CI.
+- `src/auroch_syna/__init__.py` — re-export shim.
+- `src/auroch_syna/worldgen/__init__.py`, `worldgen.py` —
   `WorldGen` orchestrator.
-- `src/worldgen/model_client.py` — new construction-side wrapper.
-- `src/worldgen/pano_gen.py` — FLUX pipelines + Nunchaku fallback.
-- `src/worldgen/pano_depth.py`, `pano_seg.py`, `pano_inpaint.py`,
-  `pano_sharp.py` — per-stage modules.
-- `src/worldgen/models/flux_pano_gen_pipeline.py`,
-  `flux_pano_fill_pipeline.py`, `inpaint_model.py` — diffusers
-  pipeline subclasses.
-- `src/worldgen/utils/lora_utils.py`, `general_utils.py`,
+- `src/auroch_syna/worldgen/model_client.py` — construction wrapper.
+- `src/auroch_syna/worldgen/pano_gen.py` — FLUX pipelines + Nunchaku fallback.
+- `src/auroch_syna/worldgen/pano_depth.py` — DA-2 depth (duplicate functions).
+- `src/auroch_syna/worldgen/pano_seg.py` — OneFormer segmentation.
+- `src/auroch_syna/worldgen/pano_inpaint.py` — LaMa inpainting.
+- `src/auroch_syna/worldgen/pano_sharp.py` — Apple ml-sharp adapter.
+- `src/auroch_syna/worldgen/models/flux_pano_gen_pipeline.py`,
+  `flux_pano_fill_pipeline.py`, `inpaint_model.py`.
+- `src/auroch_syna/worldgen/utils/lora_utils.py` — LoRA load/compose.
+- `src/auroch_syna/worldgen/utils/general_utils.py`,
   `splat_utils.py` — math + IO helpers.
-- `src/auroch_syna/` — currently empty; should re-export `WorldGen`,
-  `SplatFile`.
 
-## 6. Out of scope (intentionally not addressed here)
+## 7. Out of scope (intentionally not addressed here)
 
-- Quality of the generated splats / mesh — that is a model and
+- Quality of the generated splats / mesh — that's a model and
   hyperparameter problem, not an engineering one.
 - Replacing FLUX or DA-2 with newer checkpoints.
-- A native Rust/wgpu renderer (premature; see §3).
+- A native Rust/wgpu renderer (premature; see ARCHITECTURE.md).
 - A CRDT-based scene-sync layer (premature; no second client exists yet).
