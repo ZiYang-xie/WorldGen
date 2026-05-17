@@ -174,7 +174,7 @@ class WorldGen:
         self._publish("pipeline.stage", {"stage": "gen_pano_i2s", "prompt": prompt})
         image = resize_img(image)
         predictions = pred_depth(self.depth_model, image)
-        pano_cond_img, cond_mask = map_image_to_pano(predictions, device=self.device)
+        pano_cond_img, cond_mask = map_image_to_pano(predictions)
         pano_image = gen_pano_fill_image(
             self.pano_gen_model,
             image=pano_cond_img,

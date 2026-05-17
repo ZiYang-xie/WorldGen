@@ -711,6 +711,12 @@ class FluxFillPipeline(
         shape = (batch_size, num_channels_latents, height, width)
 
         if latents is not None:
+            # latent_image_ids is not yet computed on this early-return path;
+            # compute it now so the return signature is consistent with the
+            # normal path (which returns latents, latent_image_ids, width_new_blended).
+            latent_image_ids = self._prepare_latent_image_ids(
+                batch_size, height // 2, width // 2, device, dtype
+            )
             return latents.to(device=device, dtype=dtype), latent_image_ids
 
         image = image.to(device=device, dtype=dtype)

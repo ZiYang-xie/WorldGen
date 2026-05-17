@@ -77,17 +77,40 @@ def load_and_fix_lora(lora_path: str) -> Tuple[Dict[str, torch.Tensor], float]:
         "norm1_context.linear.lora_B.weight": (in_features * 6, rank),
     }
 
-    for block_num in range(29):
+    # Derive the block count from the loaded checkpoint rather than
+    # hard-coding 29 (which is FLUX.1-dev-specific and will silently
+    # produce wrong results for any other FLUX variant).
+    single_block_nums = set()
+    transformer_block_nums = set()
+    for key in state_dict:
+        m = re.search(r"transformer\.single_transformer_blocks\.([0-9]+)\.", key)
+        if m:
+            single_block_nums.add(int(m.group(1)))
+        m = re.search(r"transformer\.transformer_blocks\.([0-9]+)\.", key)
+        if m:
+            transformer_block_nums.add(int(m.group(1)))
+
+    # Fall back to the known FLUX.1-dev value when the checkpoint has no
+    # block keys at all (e.g. a very sparse / partial LoRA).
+    n_single = max(single_block_nums) + 1 if single_block_nums else 29
+    n_transformer = max(transformer_block_nums) + 1 if transformer_block_nums else 29
+
+    # Infer dtype from the existing tensors so zero-filled entries match
+    # and don't require an implicit upcast on every block.
+    ref_tensor = next(iter(state_dict.values()))
+    zero_dtype = ref_tensor.dtype
+
+    for block_num in range(n_single):
         for component, shape in single_block_components.items():
             key = f"transformer.single_transformer_blocks.{block_num}.{component}"
             if key not in state_dict:
-                state_dict[key] = torch.zeros(shape)
+                state_dict[key] = torch.zeros(shape, dtype=zero_dtype)
 
-    for block_num in range(29):
+    for block_num in range(n_transformer):
         for component, shape in transformer_block_components.items():
             key = f"transformer.transformer_blocks.{block_num}.{component}"
             if key not in state_dict:
-                state_dict[key] = torch.zeros(shape)
+                state_dict[key] = torch.zeros(shape, dtype=zero_dtype)
 
     return state_dict, 1.0
 

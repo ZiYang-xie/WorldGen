@@ -93,9 +93,6 @@ auroch-syna = "auroch_syna.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.dynamic]
-version = { attr = "auroch_syna.__version__" }
-
 [tool.ruff]
 line-length = 100
 target-version = "py311"

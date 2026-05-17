@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from skimage import measure, draw
-from typing import Optional, Literal
+from typing import Optional
 import open3d as o3d
 
 def pano_to_cube(pano_img: Image.Image, face_w: int, mode: str = 'bilinear') -> list[Image.Image]:
@@ -122,9 +122,15 @@ def map_image_to_pano(predictions: dict,
                     crop_center: bool = False,
                     map_h: int = 1024,
                     map_w: int = 2048,
-                    nn_batch: int = 8192,
-                    device: torch.device = 'cuda'):
-    rays_src = predictions["rays"]          
+                    nn_batch: int = 8192):
+    """Project a perspective RGBD prediction onto an equirectangular panorama.
+
+    All intermediate tensors are kept on the same device as the input
+    ``predictions["rgb"]``; the ``device`` parameter has been removed to
+    eliminate the cross-device indexing trap that occurred when callers
+    passed MPS/CPU inputs without overriding the old ``device='cuda'`` default.
+    """
+    rays_src = predictions["rays"]
     rgb_src  = predictions["rgb"].float()
 
     rgb_src, rays_src = resize_img_and_rays(rgb_src, rays_src, map_h, map_w)
@@ -145,7 +151,9 @@ def map_image_to_pano(predictions: dict,
     hit_mask = torch.zeros((map_h, map_w),dtype=torch.bool, device=rgb_src.device)
     hit_mask[v_pix, u_pix] = True
 
-    rays_pano = pano_unit_rays(map_h, map_w, device)
+    # Build panorama ray grid on the same device as the input.
+    src_device = rgb_src.device
+    rays_pano = pano_unit_rays(map_h, map_w, src_device)
     hole_mask = ~hit_mask
     valid_mask = hit_mask
 
@@ -156,18 +164,18 @@ def map_image_to_pano(predictions: dict,
         colours = img_flat[nn_idx]
         hole_idx = hole_mask.nonzero(as_tuple=False)
         pano[hole_idx[:, 0], hole_idx[:, 1]] = colours
-    
+
     # two methods to fill holes
     if crop_center:
         # directly crop the center valid region
         coords = torch.stack((v_pix, u_pix), dim=-1)
         top_left, bottom_right = coords[0], coords[-1]
-        valid_mask = torch.zeros((map_h, map_w), dtype=torch.bool, device=rgb_src.device)
+        valid_mask = torch.zeros((map_h, map_w), dtype=torch.bool, device=src_device)
         valid_mask[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]] = True
     else:
         # fill holes by max pool and contour finding
         valid_mask = F.max_pool2d(valid_mask.unsqueeze(0).float(), kernel_size=3, stride=1, padding=1).squeeze(0)
-        valid_mask = fill_mask_from_contour(valid_mask).to(device)
+        valid_mask = fill_mask_from_contour(valid_mask).to(src_device)
 
     pano = pano * valid_mask[..., None]
 
@@ -178,6 +186,13 @@ def map_image_to_pano(predictions: dict,
     return pano_img, invalid_mask_img
 
 def depth_match(init_pred: dict, bg_pred: dict, mask: np.ndarray) -> dict:
+    """Scale ``bg_pred`` distances so that their near-field median matches ``init_pred``.
+
+    Returns a *new* dict that is a shallow copy of ``bg_pred`` with the
+    ``distance`` tensor replaced by a scaled copy.  The caller's ``bg_pred``
+    dict is **not** mutated, so calling this function twice on the same
+    inputs produces the same result both times.
+    """
     valid_mask = (mask > 0)
     init_distance = init_pred["distance"][valid_mask]
     bg_distance = bg_pred["distance"][valid_mask]
@@ -185,8 +200,10 @@ def depth_match(init_pred: dict, bg_pred: dict, mask: np.ndarray) -> dict:
     init_mask = init_distance < torch.quantile(init_distance, 0.3)
     bg_mask = bg_distance < torch.quantile(bg_distance, 0.3)
     scale = init_distance[init_mask].median() / bg_distance[bg_mask].median()
-    bg_pred["distance"] *= scale
-    return bg_pred
+
+    result = dict(bg_pred)  # shallow copy — avoids mutating the caller's dict
+    result["distance"] = bg_pred["distance"] * scale
+    return result
 
 def convert_rgbd2mesh_panorama(
     rgb: torch.Tensor,                       # (H, W, 3) RGB image, values [0, 1]
@@ -194,7 +211,7 @@ def convert_rgbd2mesh_panorama(
     rays: torch.Tensor,                      # (H, W, 3) Ray directions (unit vectors ideally)
     mask: Optional[torch.Tensor] = None,     # (H, W) Optional boolean mask
     max_size: int = 4096,                    # Max dimension for resizing
-    device: Literal["cuda", "cpu"] = "cuda", # Computation device
+    device: Optional[str] = None,            # Computation device; defaults to rgb.device
 ) -> o3d.geometry.TriangleMesh:
     """
     Converts panoramic RGBD data (image, distance, rays) into an Open3D mesh.
@@ -217,6 +234,11 @@ def convert_rgbd2mesh_panorama(
     if mask is not None:
         assert mask.ndim == 2 and mask.shape[:2] == rgb.shape[:2], "Mask shape must match"
         assert mask.dtype == torch.bool, "Mask must be a boolean tensor"
+
+    # Default to the input tensor's device so callers on MPS/CPU don't need
+    # to pass an explicit device argument.
+    if device is None:
+        device = rgb.device
 
     rgb = rgb.to(device)
     distance = distance.to(device)

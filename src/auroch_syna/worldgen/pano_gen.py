@@ -23,8 +23,11 @@ from .utils.lora_utils import compose_lora_with_fixes, load_and_fix_lora
 log = get_logger(__name__)
 
 
-def build_pano_gen_model(lora_path=None, device="mps", low_vram=False, *, torch_dtype=None, enable_cpu_offload=None):
+def build_pano_gen_model(lora_path=None, device=None, low_vram=False, *, torch_dtype=None, enable_cpu_offload=None):
     """Build a panorama generation model with optional Nunchaku low VRAM support."""
+    if device is None:
+        from auroch_syna.runtime import resolve_device
+        device = resolve_device().name
     if lora_path is None:
         lora_path = hf_hub_download(repo_id="LeoXie/WorldGen", filename=f"models--WorldGen-Flux-Lora/worldgen_text2scene.safetensors")
 
@@ -64,8 +67,11 @@ def build_pano_gen_model(lora_path=None, device="mps", low_vram=False, *, torch_
     return pipe
 
 
-def build_pano_fill_model(lora_path=None, device="mps", low_vram=False, *, torch_dtype=None, enable_cpu_offload=None):
+def build_pano_fill_model(lora_path=None, device=None, low_vram=False, *, torch_dtype=None, enable_cpu_offload=None):
     """Build a panorama fill model with optional Nunchaku low VRAM support."""
+    if device is None:
+        from auroch_syna.runtime import resolve_device
+        device = resolve_device().name
     if lora_path is None:
         lora_path = hf_hub_download(repo_id="LeoXie/WorldGen", filename=f"models--WorldGen-Flux-Lora/worldgen_img2scene.safetensors")
 

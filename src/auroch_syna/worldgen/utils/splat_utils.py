@@ -4,6 +4,10 @@ import torch
 from pytorch3d.transforms import matrix_to_quaternion
 from plyfile import PlyData, PlyElement
 
+# Spherical-harmonics degree-0 normalization constant: 1 / (2 * sqrt(pi))
+SH_C0 = 0.28209479177387814
+
+
 class SplatFile:
     def __init__(
         self,
@@ -24,7 +28,7 @@ class SplatFile:
     def save(self, path: str):
         xyz = self.centers
         normals = np.zeros_like(xyz)
-        f_dc = (self.rgbs - 0.5) / 0.28209479177387814 # convert to SH coefficients
+        f_dc = (self.rgbs - 0.5) / SH_C0  # convert to SH coefficients
         opacities = self.opacities
         scale = np.log(self.scales)
         rotation = self.rotations
@@ -50,7 +54,7 @@ class SplatFile:
         PlyData([el]).write(path)
 
 
-def convert_rgbd_to_gs(rgb, distance, rays, dis_threshold=0., epsilon=1e-3, scale_factor=0.65) -> SplatFile:
+def convert_rgbd_to_gs(rgb, distance, rays, dis_threshold=0., epsilon=1e-3, scale_factor=0.65, *, valid_mask_out: list | None = None) -> SplatFile:
     """
     Given an equirectangular RGB-D image, back-project each pixel to a 3D point
     and compute the corresponding 3D Gaussian covariance so that the projection covers 1 pixel.
@@ -75,8 +79,16 @@ def convert_rgbd_to_gs(rgb, distance, rays, dis_threshold=0., epsilon=1e-3, scal
     valid_distance = distance_flat[valid_mask.view(-1)]
     centers = valid_rays * valid_distance[:, None]
 
-    # Compute polar angle per pixel for equirectangular sin(theta) correction
-    theta = torch.linspace(0, torch.pi, H, device=device)
+    # Expose the per-pixel validity mask so callers (e.g. mask_splat) can
+    # intersect their own mask with the filter applied here, rather than
+    # assuming the output array is still H*W long.
+    if valid_mask_out is not None:
+        valid_mask_out.append(valid_mask.cpu().numpy())
+
+    # Compute polar angle per pixel for equirectangular sin(theta) correction.
+    # Use pixel-centre sampling (arange + 0.5) to match pano_unit_rays in
+    # general_utils.py and avoid a half-pixel systematic bias.
+    theta = (torch.arange(H, device=device).float() + 0.5) / H * torch.pi
     theta_flat = theta.unsqueeze(1).expand(H, W).reshape(-1)
     valid_theta = theta_flat[valid_mask.view(-1)]
 
@@ -90,13 +102,13 @@ def convert_rgbd_to_gs(rgb, distance, rays, dis_threshold=0., epsilon=1e-3, scal
 
     # Build local frame: x_axis (right), y_axis (up), z_axis (ray direction)
     up = torch.tensor([0, 1, 0], dtype=torch.float32, device=device).expand_as(valid_rays)
-    x_axis = torch.nn.functional.normalize(torch.cross(up, valid_rays), dim=1)
+    x_axis = torch.nn.functional.normalize(torch.cross(up, valid_rays, dim=1), dim=1)
     fallback_up = torch.tensor([1, 0, 0], dtype=torch.float32, device=device).expand_as(valid_rays)
     degenerate_mask = torch.isnan(x_axis).any(dim=1)
     x_axis[degenerate_mask] = torch.nn.functional.normalize(
-        torch.cross(fallback_up[degenerate_mask], valid_rays[degenerate_mask]), dim=1
+        torch.cross(fallback_up[degenerate_mask], valid_rays[degenerate_mask], dim=1), dim=1
     )
-    y_axis = torch.nn.functional.normalize(torch.cross(valid_rays, x_axis), dim=1)
+    y_axis = torch.nn.functional.normalize(torch.cross(valid_rays, x_axis, dim=1), dim=1)
     z_axis = valid_rays
 
     R = torch.stack([x_axis, y_axis, z_axis], dim=-1)  # (N, 3, 3)
@@ -121,32 +133,59 @@ def convert_rgbd_to_gs(rgb, distance, rays, dis_threshold=0., epsilon=1e-3, scal
         scales=S.cpu().numpy(),
     )
 
-def mask_splat(splat: SplatFile, mask: np.ndarray) -> SplatFile:
+def mask_splat(splat: SplatFile, mask: np.ndarray, *, pixel_valid_mask: np.ndarray | None = None) -> SplatFile:
+    """Apply a 2-D boolean ``mask`` to a ``SplatFile``.
+
+    Parameters
+    ----------
+    splat:
+        The splat to filter.
+    mask:
+        An (H, W) uint8/bool array.  Pixels where ``mask > 0`` are *kept*.
+    pixel_valid_mask:
+        The (H, W) boolean array that ``convert_rgbd_to_gs`` used internally
+        to filter out pixels with ``distance <= dis_threshold``.  When
+        provided, the caller's ``mask`` is intersected with this array so
+        that the reshape is always consistent with the splat's actual length.
+        Pass the value that was appended to the ``valid_mask_out`` list given
+        to ``convert_rgbd_to_gs``.
+    """
     H, W = mask.shape
-    valid_mask = mask>0
-    centers = splat.centers
-    covariances = splat.covariances
-    rgbs = splat.rgbs
-    opacity = splat.opacities
-    scales = splat.scales
-    rotations = splat.rotations
+    caller_mask = mask > 0
 
-    centers = centers.reshape(H, W, 3)[valid_mask]
-    covariances = covariances.reshape(H, W, 3, 3)[valid_mask]
-    rgbs = rgbs.reshape(H, W, 3)[valid_mask]
-    opacity = opacity.reshape(H, W, 1)[valid_mask]
-    scales = scales.reshape(H, W, 3)[valid_mask]
-    rotations = rotations.reshape(H, W, 4)[valid_mask]
+    if pixel_valid_mask is not None:
+        # The splat only contains entries for pixels where pixel_valid_mask is
+        # True.  Intersect the caller's mask with that filter so the reshape
+        # is always valid.
+        combined_flat = pixel_valid_mask.reshape(-1) & caller_mask.reshape(-1)
+        # Indices into the *filtered* splat array that we want to keep.
+        keep = combined_flat[pixel_valid_mask.reshape(-1)]
+        return SplatFile(
+            centers=splat.centers[keep],
+            covariances=splat.covariances[keep],
+            rgbs=splat.rgbs[keep],
+            opacities=splat.opacities[keep],
+            scales=splat.scales[keep],
+            rotations=splat.rotations[keep],
+        )
 
-    splat = {
-        "centers": centers,
-        "covariances": covariances,
-        "rgbs": rgbs,
-        "opacities": opacity,
-        "scales": scales,
-        "rotations": rotations
-    }
-    return SplatFile(**splat)
+    # Legacy path: assumes the splat was produced with dis_threshold=0 so
+    # no pixels were filtered and the array is still exactly H*W long.
+    centers = splat.centers.reshape(H, W, 3)[caller_mask]
+    covariances = splat.covariances.reshape(H, W, 3, 3)[caller_mask]
+    rgbs = splat.rgbs.reshape(H, W, 3)[caller_mask]
+    opacity = splat.opacities.reshape(H, W, 1)[caller_mask]
+    scales = splat.scales.reshape(H, W, 3)[caller_mask]
+    rotations = splat.rotations.reshape(H, W, 4)[caller_mask]
+
+    return SplatFile(
+        centers=centers,
+        covariances=covariances,
+        rgbs=rgbs,
+        opacities=opacity,
+        scales=scales,
+        rotations=rotations,
+    )
 
 def merge_splats(splat1: SplatFile, splat2: SplatFile) -> SplatFile:
     return SplatFile(

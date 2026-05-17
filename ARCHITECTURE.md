@@ -1,58 +1,174 @@
-**Auroch Syna — Short Architecture & Migration Plan**
+**Auroch Syna — Architecture & Roadmap**
 
-Purpose
-- Capture prioritized, actionable items from the audit to evolve this repo into a cross‑platform, context‑aware world‑building environment.
+> See [REPORT.md](./REPORT.md) for the concrete bug-fix audit and
+> resolution status of individual issues.  This document owns the
+> higher-level design intent and migration plan.
 
-Goals
-- Separate deterministic runtime from ML service layer.
-- Define semantic primitives for state and handoff.
-- Make on‑device inference practical (CoreML/ONNX/TorchScript conversions).
-- Add developer ergonomics (CLI, demo harness, packaging).
+---
 
-High Level Architecture
-- Core: small, deterministic engine (Rust/C++), exposes an IPC/FFI boundary.
-- ML Layer: model runners (local or remote) exposing a `ModelClient` API (gRPC/HTTP/UNIX socket).
-- Adapters: bridge internal scene primitives to ML outputs (pano → splats/mesh).
-- Orchestration: state sync, snapshot, diff & handoff using CRDTs or versioned snapshots.
+## Purpose
 
-Semantic Primitives
-- Affordance<T> — typed, minimal state units (eg. `Affordance<Splat>`, `Affordance<Mesh>`).
-- Snapshot / Delta — immutable snapshots + compact diffs for efficient sync/handoff.
-- Intent / Command — serializable commands for interactive tools (Winnie/CLI).
+Evolve this repo from a research prototype into a cross-platform,
+context-aware world-building environment with:
 
-Performance & Local Edge
-- Convert heavy models to platform optimized formats (CoreML for iOS, TorchScript/ONNX for CPU/GPU).
-- Add model warm/cold policy in `ModelClient` (lazy load, keep‑alive, offload).
-- Add tiling & streaming for large pano decoding in `Flux` pipelines.
+- A clean separation between the deterministic runtime and the ML service
+  layer.
+- Semantic primitives for state, handoff, and collaborative editing.
+- Practical on-device inference (CoreML / ONNX / TorchScript).
+- Good developer ergonomics (CLI, typed API, CI, packaging).
 
-Service Integration
-- Define minimal `ModelClient` interface (already present in `src/auroch_syna/worldgen/model_client.py`).
-- Add pluggable transport: in‑process, unix socket, HTTP/gRPC.
-- Provide CLI runner with config to target local model server vs in‑process.
+---
 
-Developer UX
-- Provide lightweight smoke tests, CI job to check imports and basic pipeline instantiation.
-- Supply a `auroch_syna` package that is importable while we migrate sources (already added).
+## High-Level Architecture
 
-Immediate Action Items (priority)
-1. Complete rebrand and packaging: ensure `pyproject.toml`, egg‑info, README, and demos use `auroch_syna` (done for core files; still scan & fix leftovers).
-2. Add architecture doc and roadmap (this file).
-3. Add a smoke import test and CI job that runs: `python -c "from auroch_syna import WorldGen; print('OK')"`.
-4. Convert critical model loads in `ModelClient` to support a transport interface (thin adapter pattern).
-5. Add a `design/` folder for future proto files (gRPC schema), CRDT library picks, and ECS primitives.
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Desktop App  (apps/desktop — Tauri + React)                │
+│  Web Viewer   (Viser — demo.py)                             │
+│  CLI          (auroch-syna — src/auroch_syna/cli.py)        │
+└────────────────────────┬────────────────────────────────────┘
+                         │ Commands / Events (EventBus)
+┌────────────────────────▼────────────────────────────────────┐
+│  Runtime Layer  (src/auroch_syna/runtime/)                  │
+│  • device.py     — resolve_device(), DeviceInfo             │
+│  • policy.py     — select_policy(), RuntimePolicy           │
+│  • transport.py  — ModelHandle protocol, InProcessHandle    │
+│  • bus.py        — EventBus (publish/subscribe)             │
+│  • logging.py    — get_logger(), configure()                │
+│  • torch_compat.py — safe_autocast()                        │
+└────────────────────────┬────────────────────────────────────┘
+                         │ ModelHandle.infer()
+┌────────────────────────▼────────────────────────────────────┐
+│  ML Service Layer  (src/auroch_syna/worldgen/)              │
+│  • model_client.py  — ModelClient (build + cache handles)   │
+│  • worldgen.py      — WorldGen orchestrator                 │
+│  • pano_gen.py      — FLUX panorama generation              │
+│  • pano_depth.py    — DA-2 depth estimation                 │
+│  • pano_seg.py      — OneFormer segmentation                │
+│  • pano_inpaint.py  — LaMa inpainting                       │
+│  • pano_sharp.py    — Apple ml-sharp (optional)             │
+│  • backends/        — RPC client, MLX backend, mock server  │
+└────────────────────────┬────────────────────────────────────┘
+                         │ SplatFile / TriangleMesh
+┌────────────────────────▼────────────────────────────────────┐
+│  Scene Layer  (src/auroch_syna/scene/)                      │
+│  • ir.py      — SceneSnapshot, SemanticObject, Affordance   │
+│  • crdt.py    — LWWRegister, ORSet, SceneDelta, diff/merge  │
+│  • commands.py — Command (serializable intent)              │
+│  • events.py   — typed event definitions                    │
+└────────────────────────┬────────────────────────────────────┘
+                         │ ProjectBundle
+┌────────────────────────▼────────────────────────────────────┐
+│  Project Layer  (src/auroch_syna/project/)                  │
+│  • bundle.py  — .aurochsyna directory (scene + assets +     │
+│                 edit_log + manifest)                        │
+└─────────────────────────────────────────────────────────────┘
+```
 
-Where to start in code
-- `src/auroch_syna/worldgen/model_client.py` — boundary for ML loads.
-- `src/auroch_syna/worldgen/worldgen.py` — high level API.
-- `src/auroch_syna/worldgen/pano_*` — pipeline adapters.
-- `src/auroch_syna/worldgen/utils/*` — utilities to keep; consider moving heavy image libs behind optional deps.
+---
 
-Next checkpoints
-- (A) CI smoke import and lint (1–2 hours).  
-- (B) Implement `ModelClient` transport adapters + example local runner (1–2 days).  
-- (C) Design CRDT-based snapshot format + offline handoff prototype (2–4 days).
+## Semantic Primitives
 
-Appendix — quick checklist for packaging
-- `pyproject.toml` name and dynamic version attr (updated).  
-- `src/auroch_syna/__init__.py` shim (present).  
-- Egg‑info & README updates (updated, but scan for remaining mentions).
+| Primitive | Location | Purpose |
+|-----------|----------|---------|
+| `Affordance<T>` | `scene/ir.py` | Typed, minimal state unit (e.g. `Affordance(kind="surface", params={...})`) |
+| `SceneSnapshot` | `scene/ir.py` | Immutable, JSON-round-trippable scene state |
+| `SceneDelta` | `scene/crdt.py` | Compact diff between two snapshots |
+| `LWWRegister` | `scene/crdt.py` | Last-Write-Wins register for scalar fields |
+| `ORSet` | `scene/crdt.py` | Observed-Remove Set for object collections |
+| `Command` | `scene/commands.py` | Serializable user intent |
+| `ModelHandle` | `runtime/transport.py` | Protocol: `infer(*args) -> outputs` |
+| `RuntimePolicy` | `runtime/policy.py` | Device + dtype + backend selection |
+| `ProjectBundle` | `project/bundle.py` | On-disk project format (`.aurochsyna/`) |
+
+---
+
+## Performance & Local Edge
+
+- **Model warm/cold policy** is implemented in `ModelClient` (lazy build,
+  cached handles, optional CPU offload via `RuntimePolicy`).
+- **Device resolution** is centralised in `runtime/device.py`
+  (`resolve_device()`) and `runtime/policy.py` (`select_policy()`).
+  All worldgen builders now route through these helpers; no module
+  hard-codes `device='cuda'` as a default.
+- **`safe_autocast`** in `runtime/torch_compat.py` no-ops on unsupported
+  device types, fixing the CPU crash.
+- **VAE tiling** is enabled by default in `build_pano_gen_model` and
+  `build_pano_fill_model` for large panorama decoding.
+- **MLX backend** for Apple Silicon is probed by `select_policy()` and
+  loaded lazily by `backends/mlx_flux.py`.
+
+---
+
+## Service Integration
+
+The `ModelHandle` protocol (`runtime/transport.py`) is the boundary
+between callers and inference backends:
+
+```python
+class ModelHandle(Protocol):
+    name: str
+    def infer(self, *args, **kwargs) -> Any: ...
+    def raw(self) -> Any: ...
+```
+
+`InProcessHandle` wraps a built pipeline + inference callable.
+`RemoteHandle` is a placeholder that raises `NotImplementedError` until
+the out-of-process transport is implemented.
+
+`ModelClientRPC` (`worldgen/backends/rpc_client.py`) provides a thin HTTP
+JSON client for development-time remote model service calls.
+
+---
+
+## Developer UX
+
+- **CLI**: `auroch-syna {info,daemon,generate,generate-from}` — ML imports
+  are lazy so `auroch-syna info` works without GPU or ML extras.
+- **CI**: Three jobs — `lint` (ruff), `unit-tests` (pytest, no GPU),
+  `smoke-import` (lazy-shim verification).
+- **Tests**: `tests/` covers scene IR, CRDT primitives, project bundle,
+  CLI, model client RPC, and worldgen math utilities.
+- **Packaging**: `pip install .` for the runtime/scene/CLI; `pip install
+  ".[ml]"` for the full ML pipeline.
+
+---
+
+## Roadmap
+
+### Near-term (next 1–2 weeks)
+
+- [ ] Mirror Sharp + LaMa model weights on HuggingFace with pinned sha256s.
+- [ ] Promote FLUX monkey-patched VAE helpers to real subclass methods.
+- [ ] Add `mypy` to CI once type annotations are more complete.
+
+### Medium-term (1–2 months)
+
+- [ ] Implement `RemoteHandle` transport (WebSocket / gRPC) so the ML
+      service can run out-of-process on a GPU machine while the desktop
+      app runs on CPU.
+- [ ] Add vector clocks / hybrid logical clocks to `SceneSnapshot` objects
+      for production-grade CRDT merging.
+- [ ] Streaming panorama decode in the FLUX pipelines (tiling + streaming
+      for large resolutions).
+
+### Longer-term
+
+- [ ] Native Rust/wgpu renderer for the desktop app.
+- [ ] CoreML / ONNX / TorchScript export pipeline for on-device inference.
+- [ ] Multi-user collaborative editing via the CRDT layer + daemon WebSocket.
+
+---
+
+## Where to Start in Code
+
+| Goal | Entry point |
+|------|-------------|
+| Run the demo | `demo.py` |
+| Generate programmatically | `src/auroch_syna/worldgen/worldgen.py` — `WorldGen` |
+| Understand device selection | `src/auroch_syna/runtime/policy.py` — `select_policy()` |
+| Understand model construction | `src/auroch_syna/worldgen/model_client.py` — `ModelClient` |
+| Understand the scene format | `src/auroch_syna/scene/ir.py` — `SceneSnapshot` |
+| Understand collaborative sync | `src/auroch_syna/scene/crdt.py` — `diff`, `merge` |
+| Understand the project format | `src/auroch_syna/project/bundle.py` — `ProjectBundle` |
+| Add a new ML backend | `src/auroch_syna/worldgen/backends/` |
