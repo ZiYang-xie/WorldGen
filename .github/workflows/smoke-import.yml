@@ -1,0 +1,65 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  # -------------------------------------------------------------------------
+  # 1. Lint — fast, no GPU, no heavy deps
+  # -------------------------------------------------------------------------
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install ruff
+        run: pip install "ruff>=0.5"
+      - name: Ruff lint
+        run: ruff check src/ tests/
+
+  # -------------------------------------------------------------------------
+  # 2. Unit tests — install core package (no ML extras), run pure-Python tests
+  # -------------------------------------------------------------------------
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install core package and dev deps
+        # Install the package itself (no ML extras) so that import-side-effect
+        # errors and dependency-resolution failures are caught here rather than
+        # silently passing through the old lightweight import check.
+        run: pip install -e ".[dev]"
+      - name: Run unit tests (no GPU required)
+        run: pytest tests/ -v --tb=short
+
+  # -------------------------------------------------------------------------
+  # 3. Smoke import — verify the lazy shim is importable without any extras
+  # -------------------------------------------------------------------------
+  smoke-import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install core package only
+        run: pip install -e .
+      - name: Smoke import
+        run: |
+          python - <<'PY'
+          import importlib
+          mod = importlib.import_module('auroch_syna')
+          print('Imported', mod.__name__, 'version=', getattr(mod, '__version__', 'unknown'))
+          # Verify that heavy ML deps are NOT imported by the shim
+          import sys
+          assert 'auroch_syna.worldgen.worldgen' not in sys.modules, \
+              "worldgen.worldgen was eagerly imported — lazy shim is broken"
+          print('Lazy import check passed.')
+          PY

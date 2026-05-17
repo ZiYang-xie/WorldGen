@@ -1,12 +1,9 @@
-[submodule "submodules/pytorch3d"]
-	path = submodules/pytorch3d
-	url = https://github.com/facebookresearch/pytorch3d.git
 [submodule "submodules/viser"]
 	path = submodules/viser
 	url = https://github.com/ZiYang-xie/viser.git
 [submodule "submodules/ml-sharp"]
 	path = submodules/ml-sharp
-	url = git@github.com:apple/ml-sharp.git
+	url = https://github.com/apple/ml-sharp.git
 [submodule "submodules/DA-2"]
 	path = submodules/DA-2
 	url = https://github.com/EnVision-Research/DA-2.git

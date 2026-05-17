@@ -1,4 +1,4 @@
-# WorldGen: Generate Any 3D Scene in Seconds 
+# Auroch Syna: Cross-platform World‑Building Environment
 <div align="center">
   <img src="./assets/logo.png" alt="logo" width="300" style="margin-bottom: 210px;"/>  
 </div>
@@ -13,16 +13,19 @@
 
 </div>
 
-> Author 👨‍💻: [Ziyang Xie](https://ziyangxie.site/)
-> Contact Email 📧: [ziyangxie01@gmail.com](mailto:ziyangxie01@gmail.com)  
+> Author 👨‍💻: Carter Birchall
+> Contact Email 📧: [carter.birchall@gmail.com](mailto:carter.birchall@gmail.com)
 > Feel free to contact me for any questions or collaborations!
+>
+> Auroch Syna is a fork of [WorldGen](https://github.com/ZiYang-xie/WorldGen)
+> by Ziyang Xie, distributed under the Apache 2.0 license.
 
 ## 🌟 Introduction
-🌏 **WorldGen** can generate 3D scenes in seconds from text prompts and images.  It is a powerful tool for creating 3D environments and scenes for games, simulations, robotics, and virtual reality applications.  
+🌏 **Auroch Syna** can generate 3D scenes in seconds from text prompts and images.  It is a powerful tool for creating 3D environments and scenes for games, simulations, robotics, and virtual reality applications.  
 - **Instant 3D Generation** ⚡️ : Create full 3D scenes from input data in seconds
-- **360° Free Exploration** 🧭 : WorldGen supports free 360° consistent exploration of the generated 3D scene with loop closure.
-- **Diverse Scenes Support** 🌈 : WorldGen supports both indoor and outdoor scenes, both realistic and unrealistic scenes in any style.
-- **Flexible Rendering** 📸 : WorldGen supports rendering at any resolution with any camera setting and trajectory in real-time.
+- **360° Free Exploration** 🧭 : Auroch Syna supports free 360° consistent exploration of the generated 3D scene with loop closure.
+- **Diverse Scenes Support** 🌈 : Auroch Syna supports both indoor and outdoor scenes, both realistic and stylized scenes in any style.
+- **Flexible Rendering** 📸 : Auroch Syna supports rendering at any resolution with any camera setting and trajectory in real-time.
 
 Two lines of code to generate a 3D scene in seconds
 ```python
@@ -67,22 +70,25 @@ worldgen.generate_world("<TEXT PROMPT to describe the scene>")
 
 ## 📦 Installation
 
-Getting started with WorldGen is simple!
+Getting started with Auroch Syna is simple!
 
 ```bash
-# Clone the repository 
-git clone --recursive https://github.com/ZiYang-xie/WorldGen.git 
-cd WorldGen
+# Clone the repository
+git clone --recursive https://github.com/auroch-syna/syna.git
+cd Syna
 
-# Create a new conda environment
-conda create -n worldgen python=3.11
-conda activate worldgen
+# Create a new environment
+conda create -n auroch_syna python=3.11
+conda activate auroch_syna
 
-# Install torch and torchvision (with GPU support)
+# Install torch and torchvision
 pip3 install torch torchvision
 
-# Install worldgen
+# Install the runtime (light, no ML deps)
 pip install .
+
+# Install the ML pipeline extras (FLUX, DA-2, segmentation, splat utils)
+pip install ".[ml]"
 
 # Install DA-2 (360 depth estimation) -- use --no-deps to avoid version conflicts
 pip install git+https://github.com/EnVision-Research/DA-2.git#subdirectory=src --no-deps
@@ -125,12 +131,12 @@ After running the demo script, A local viser server will be launched at `http://
 
 ## 🎮 Advanced Usage
 
-### WorldGen API
-Quick start with WorldGen (mode in `t2s` or `i2s`) and generate your first 3D scene in seconds:  
+### Auroch Syna API
+Quick start with Auroch Syna (mode in `t2s` or `i2s`) and generate your first 3D scene in seconds:  
 - 📝 **Text to Scene:** Generate a 3D scene from a text prompt
 ```python
 # Example using the Python API
-from worldgen import WorldGen
+from auroch_syna import WorldGen
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 worldgen = WorldGen(mode="t2s", device=device, low_vram=False) # Set low_vram to True if your GPU VRAM is less than 24GB.
@@ -172,7 +178,7 @@ pip install iopaint --no-dependencies
 ---
 
 > [!Note]
-> **WorldGen** internally support generating a 3D scene from a 360° panorama image 📸, which related to how WorldGen works:
+> **Auroch Syna** internally supports generating a 3D scene from a 360° panorama image 📸; this feature accepts equirectangular (2:1) panorama inputs.
 > You can try it out if you happen to have a 360° panorama (equirectangular) image. Aspect ratio of the panorama image should be 2:1.
 ```python
  pano_image = Image.open("path/to/your/pano_image.jpg")
@@ -180,12 +186,21 @@ pip install iopaint --no-dependencies
 ```
 
 ## ⭐️ Star History
-Give a star to WorldGen if you like it!
+Give a star to Auroch Syna if you like it!
 [![Star History Chart](https://api.star-history.com/svg?repos=ZiYang-xie/WorldGen&type=Date)](https://www.star-history.com/#ZiYang-xie/WorldGen&Date)
 
 ## 📚 Citation
-If you find this project useful, please consider citing it as follows:
+If you find this project useful, please cite both Auroch Syna and the
+upstream WorldGen work it is built on:
 ```bibtex
+@misc{auroch_syna2026birchall,
+  author = {Carter Birchall},
+  title = {Auroch Syna: Cross-platform World‑Building Environment},
+  year = {2026},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+}
+
 @misc{worldgen2025ziyangxie,
   author = {Ziyang Xie},
   title = {WorldGen: Generate Any 3D Scene in Seconds},
@@ -199,7 +214,14 @@ If you find this project useful, please consider citing it as follows:
 ---
 
 ## 🤝 Acknowledgements
-This project is built on top of the follows, please consider citing them if you find them useful:
+Auroch Syna is a fork of [WorldGen](https://github.com/ZiYang-xie/WorldGen)
+by Ziyang Xie. The original panorama→splat pipeline, FLUX LoRA training,
+and most of the per-stage code are upstream work; the Auroch Syna fork
+focuses on cross-platform packaging, MPS / low-VRAM support, and
+service-layer integration.
+
+This project is built on top of the following, please consider citing
+them if you find them useful:
 - [DA-2](https://github.com/EnVision-Research/DA-2)
 - [UniK3D](https://github.com/lpiccinelli-eth/UniK3D)
 - [Layerpano3D](https://github.com/3DTopia/LayerPano3D)

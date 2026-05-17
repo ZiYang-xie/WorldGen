@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.json",
+  "productName": "Auroch Syna",
+  "version": "0.2.0",
+  "identifier": "com.auroch.syna",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Auroch Syna",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 900,
+        "minHeight": 600,
+        "decorations": false,
+        "transparent": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "center": true
+      }
+    ],
+    "trayIcon": {
+      "id": "syna-tray",
+      "iconPath": "icons/tray.png",
+      "tooltip": "Auroch Syna"
+    },
+    "security": {
+      "csp": null,
+      "dangerousDisableAssetCspModification": false
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "13.0",
+      "frameworks": [],
+      "signingIdentity": null,
+      "entitlements": null
+    },
+    "externalBin": [
+      "binaries/syna-daemon"
+    ]
+  }
+}

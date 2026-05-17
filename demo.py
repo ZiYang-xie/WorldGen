@@ -10,8 +10,7 @@ from scipy.spatial.transform import Rotation as R
 from tqdm import tqdm
 import time
 from pathlib import Path
-from worldgen.utils.splat_utils import SplatFile
-from worldgen import WorldGen
+from auroch_syna import SplatFile, WorldGen
 import open3d as o3d
 import trimesh
 
@@ -359,7 +358,7 @@ if __name__ == "__main__":
     parser.add_argument("--low_vram", action="store_true", help="Whether to use low VRAM")
     args = parser.parse_args()
 
-    if torch.cuda.get_device_properties(0).total_memory / (1024 ** 3) < 24:
+    if torch.cuda.is_available() and torch.cuda.get_device_properties(0).total_memory / (1024 ** 3) < 24:
         print("Detected GPU VRAM less than 24GB, setting low_vram to True")
         args.low_vram = True
 
