@@ -1,4 +1,50 @@
+/* ============================================================
+   AUROCH CAPITALIST — Design System
+   "Wealth, movement, and intelligence are one system."
+   ============================================================ */
+
 :root {
+  /* ---- Capitalist Palette ---- */
+  --ac-white:         #FAFBFC;
+  --ac-ivory:         #F2F4F6;
+  --ac-pearl:         #E8EAED;
+  --ac-gold:          #C9A84C;
+  --ac-gold-light:    #E8D48B;
+  --ac-gold-dim:      rgba(201,168,76,0.12);
+  --ac-blue-deep:     #1B3A5C;
+  --ac-blue:          #2B5B84;
+  --ac-blue-light:    #4A8BB5;
+  --ac-blue-glass:    rgba(27,58,92,0.06);
+  --ac-mercury:       #B8C0C8;
+  --ac-mercury-light: #D4D8DC;
+  --ac-silver:        #8A9199;
+  --ac-green:         #2D9B6E;
+  --ac-red:           #B8433E;
+  --ac-amber:         #C49A3C;
+
+  /* ---- Spacing (base 4px) ---- */
+  --ac-space-1: 4px;
+  --ac-space-2: 8px;
+  --ac-space-3: 12px;
+  --ac-space-4: 16px;
+  --ac-space-5: 24px;
+  --ac-space-6: 32px;
+  --ac-space-7: 48px;
+  --ac-space-8: 64px;
+
+  /* ---- Radius ---- */
+  --ac-radius-sm: 4px;
+  --ac-radius:    8px;
+  --ac-radius-lg: 12px;
+  --ac-radius-xl: 16px;
+
+  /* ---- Shadows ---- */
+  --ac-shadow-sm:  0 1px 3px rgba(27,58,92,0.08);
+  --ac-shadow:     0 4px 12px rgba(27,58,92,0.10);
+  --ac-shadow-lg:  0 8px 32px rgba(27,58,92,0.14);
+  --ac-shadow-gold: 0 2px 12px rgba(201,168,76,0.18);
+
+  /* ---- Legacy Syna tokens (preserved) ---- */
   --syna-bg:          rgba(18, 18, 20, 0.82);
   --syna-surface:     rgba(28, 28, 32, 0.72);
   --syna-border:      rgba(255, 255, 255, 0.07);
@@ -211,4 +257,695 @@ html, body, #root {
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+/* ============================================================
+   AUROCH CAPITALIST — Component Styles
+   ============================================================ */
+
+/* ---- Capitalist App Shell ---- */
+.ac-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--ac-white);
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+  color: var(--ac-blue-deep);
+}
+
+.ac-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ---- Capitalist Header ---- */
+.ac-header {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--ac-space-5);
+  gap: var(--ac-space-4);
+  flex-shrink: 0;
+  background: var(--ac-white);
+  border-bottom: 1px solid var(--ac-pearl);
+  -webkit-app-region: drag;
+}
+
+.ac-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--ac-space-2);
+  -webkit-app-region: no-drag;
+}
+
+.ac-logo-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--ac-gold), var(--ac-gold-light));
+  box-shadow: var(--ac-shadow-gold);
+  position: relative;
+}
+
+.ac-logo-mark::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ac-white);
+}
+
+.ac-logo-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ac-blue-deep);
+  letter-spacing: -0.01em;
+}
+
+.ac-logo-sub {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ac-silver);
+  margin-left: var(--ac-space-1);
+}
+
+.ac-header-spacer { flex: 1; }
+
+.ac-header-controls {
+  display: flex;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.ac-core-status {
+  display: flex;
+  align-items: center;
+  gap: var(--ac-space-2);
+  padding: var(--ac-space-1) var(--ac-space-3);
+  background: var(--ac-ivory);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ac-pearl);
+  -webkit-app-region: no-drag;
+}
+
+.ac-core-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ac-green);
+  box-shadow: 0 0 6px var(--ac-green);
+}
+
+.ac-core-dot.amber { background: var(--ac-amber); box-shadow: none; }
+.ac-core-dot.red   { background: var(--ac-red); box-shadow: none; }
+
+.ac-core-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ac-blue);
+}
+
+.ac-core-metric {
+  font-size: 11px;
+  font-family: "SF Mono", ui-monospace, monospace;
+  color: var(--ac-silver);
+}
+
+/* ---- Capitalist Sidebar ---- */
+.ac-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ac-ivory);
+  border-right: 1px solid var(--ac-pearl);
+  padding: var(--ac-space-4) 0;
+  overflow-y: auto;
+}
+
+.ac-nav-section {
+  padding: 0 var(--ac-space-4);
+  margin-bottom: var(--ac-space-5);
+}
+
+.ac-nav-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ac-silver);
+  margin-bottom: var(--ac-space-2);
+  padding: 0 var(--ac-space-2);
+}
+
+.ac-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ac-space-2);
+  padding: var(--ac-space-2) var(--ac-space-3);
+  border-radius: var(--ac-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ac-blue);
+}
+
+.ac-nav-item:hover {
+  background: var(--ac-blue-glass);
+  color: var(--ac-blue-deep);
+}
+
+.ac-nav-item.active {
+  background: var(--ac-gold-dim);
+  color: var(--ac-blue-deep);
+  font-weight: 500;
+  border-left: 2px solid var(--ac-gold);
+  padding-left: calc(var(--ac-space-3) - 2px);
+}
+
+.ac-nav-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+}
+
+.ac-nav-item.active .ac-nav-icon { opacity: 1; }
+
+.ac-nav-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--ac-gold-dim);
+  color: var(--ac-gold);
+}
+
+/* ---- Capitalist Content ---- */
+.ac-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ac-white);
+}
+
+.ac-content-header {
+  padding: var(--ac-space-5) var(--ac-space-6);
+  border-bottom: 1px solid var(--ac-pearl);
+}
+
+.ac-content-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ac-blue-deep);
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--ac-space-1);
+}
+
+.ac-content-subtitle {
+  font-size: 13px;
+  color: var(--ac-blue-light);
+  margin: 0;
+}
+
+.ac-content-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--ac-space-6);
+}
+
+/* ---- Capitalist Cards ---- */
+.ac-card {
+  background: var(--ac-white);
+  border: 1px solid var(--ac-pearl);
+  border-radius: var(--ac-radius);
+  padding: var(--ac-space-5);
+  box-shadow: var(--ac-shadow-sm);
+  transition: box-shadow 0.2s ease-out;
+}
+
+.ac-card:hover {
+  box-shadow: var(--ac-shadow);
+}
+
+.ac-card-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ac-silver);
+  margin-bottom: var(--ac-space-3);
+}
+
+.ac-card-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--ac-blue-deep);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.ac-card-change {
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: var(--ac-space-1);
+}
+
+.ac-card-change.positive { color: var(--ac-green); }
+.ac-card-change.negative { color: var(--ac-red); }
+
+.ac-card-footer {
+  margin-top: var(--ac-space-4);
+  padding-top: var(--ac-space-3);
+  border-top: 1px solid var(--ac-mercury-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ---- Capitalist Grid ---- */
+.ac-grid {
+  display: grid;
+  gap: var(--ac-space-5);
+}
+
+.ac-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.ac-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.ac-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* ---- Capitalist Table ---- */
+.ac-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ac-table thead th {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ac-silver);
+  text-align: left;
+  padding: var(--ac-space-2) var(--ac-space-3);
+  border-bottom: 1px solid var(--ac-mercury);
+}
+
+.ac-table tbody tr {
+  transition: background 0.15s ease-out;
+}
+
+.ac-table tbody tr:nth-child(even) {
+  background: var(--ac-ivory);
+}
+
+.ac-table tbody tr:hover {
+  background: var(--ac-gold-dim);
+}
+
+.ac-table td {
+  padding: var(--ac-space-3);
+  border-bottom: 1px solid var(--ac-pearl);
+  color: var(--ac-blue);
+}
+
+.ac-table td.mono {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.ac-table td.positive { color: var(--ac-green); }
+.ac-table td.negative { color: var(--ac-red); }
+
+/* ---- Capitalist Buttons ---- */
+.ac-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ac-space-1);
+  padding: var(--ac-space-2) var(--ac-space-4);
+  border-radius: var(--ac-radius-sm);
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.ac-btn:active { transform: scale(0.97); }
+.ac-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ac-btn-primary {
+  background: var(--ac-gold);
+  color: var(--ac-white);
+  box-shadow: var(--ac-shadow-gold);
+}
+
+.ac-btn-primary:hover:not(:disabled) {
+  background: var(--ac-gold-light);
+}
+
+.ac-btn-secondary {
+  background: var(--ac-white);
+  color: var(--ac-blue);
+  border: 1px solid var(--ac-pearl);
+}
+
+.ac-btn-secondary:hover:not(:disabled) {
+  background: var(--ac-ivory);
+  border-color: var(--ac-mercury);
+}
+
+.ac-btn-ghost {
+  background: none;
+  color: var(--ac-blue);
+  padding: var(--ac-space-1) var(--ac-space-2);
+}
+
+.ac-btn-ghost:hover:not(:disabled) {
+  color: var(--ac-gold);
+}
+
+/* ---- Capitalist Inputs ---- */
+.ac-input-group {
+  margin-bottom: var(--ac-space-4);
+}
+
+.ac-input-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ac-silver);
+  margin-bottom: var(--ac-space-1);
+}
+
+.ac-input {
+  width: 100%;
+  padding: var(--ac-space-2) var(--ac-space-3);
+  background: var(--ac-white);
+  border: 1px solid var(--ac-pearl);
+  border-radius: var(--ac-radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ac-blue-deep);
+  outline: none;
+  transition: all 0.15s ease-out;
+}
+
+.ac-input:focus {
+  border-color: var(--ac-gold);
+  box-shadow: 0 0 0 3px var(--ac-gold-dim);
+}
+
+.ac-input::placeholder {
+  color: var(--ac-blue-light);
+}
+
+.ac-input.mono {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 12px;
+}
+
+/* ---- Capitalist Ticker ---- */
+.ac-ticker {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--ac-space-4);
+  background: var(--ac-ivory);
+  border-bottom: 1px solid var(--ac-pearl);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ac-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ac-space-1);
+  padding: 0 var(--ac-space-3);
+  font-size: 11px;
+  font-family: "SF Mono", ui-monospace, monospace;
+  color: var(--ac-blue);
+}
+
+.ac-ticker-sep {
+  color: var(--ac-mercury);
+  opacity: 0.5;
+}
+
+.ac-ticker-item .positive { color: var(--ac-green); }
+.ac-ticker-item .negative { color: var(--ac-red); }
+
+.ac-ticker-item.watched {
+  color: var(--ac-gold);
+  font-weight: 500;
+}
+
+/* ---- Capitalist Core Visualization ---- */
+.ac-core-viz {
+  width: 120px;
+  height: 120px;
+  position: relative;
+  margin: 0 auto;
+}
+
+.ac-core-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--ac-mercury);
+  animation: core-spin 8s linear infinite;
+}
+
+.ac-core-ring::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ac-gold);
+  transform: translateX(-50%);
+}
+
+.ac-core-ring-inner {
+  position: absolute;
+  inset: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--ac-mercury-light);
+  animation: core-spin 12s linear infinite reverse;
+}
+
+.ac-core-center {
+  position: absolute;
+  inset: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%,
+    var(--ac-gold-light), var(--ac-gold-dim) 70%);
+  box-shadow: var(--ac-shadow-gold);
+}
+
+@keyframes core-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ---- Capitalist Status Pill ---- */
+.ac-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ac-space-1);
+  padding: var(--ac-space-1) var(--ac-space-2);
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ac-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.ac-status-active {
+  background: rgba(45,155,110,0.1);
+  color: var(--ac-green);
+}
+
+.ac-status-active .ac-status-dot {
+  background: var(--ac-green);
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+.ac-status-standby {
+  background: var(--ac-ivory);
+  color: var(--ac-silver);
+}
+
+.ac-status-standby .ac-status-dot {
+  background: var(--ac-mercury);
+}
+
+.ac-status-warning {
+  background: rgba(196,154,60,0.1);
+  color: var(--ac-amber);
+}
+
+.ac-status-warning .ac-status-dot {
+  background: var(--ac-amber);
+}
+
+@keyframes status-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(45,155,110,0.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(45,155,110,0); }
+}
+
+/* ---- Capitalist Dispatch Feed ---- */
+.ac-dispatch-item {
+  padding: var(--ac-space-4) 0;
+  border-bottom: 1px solid var(--ac-pearl);
+}
+
+.ac-dispatch-item:last-child { border-bottom: none; }
+
+.ac-dispatch-time {
+  font-size: 10px;
+  font-family: "SF Mono", ui-monospace, monospace;
+  color: var(--ac-silver);
+  margin-bottom: var(--ac-space-1);
+}
+
+.ac-dispatch-headline {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ac-blue-deep);
+  margin: 0 0 var(--ac-space-2);
+  line-height: 1.3;
+}
+
+.ac-dispatch-body {
+  font-size: 13px;
+  color: var(--ac-blue);
+  line-height: 1.5;
+  margin: 0 0 var(--ac-space-2);
+}
+
+.ac-dispatch-tags {
+  display: flex;
+  gap: var(--ac-space-1);
+  flex-wrap: wrap;
+}
+
+.ac-dispatch-tag {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--ac-blue-glass);
+  color: var(--ac-blue);
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.ac-dispatch-tag:hover {
+  background: var(--ac-gold-dim);
+  color: var(--ac-gold);
+}
+
+/* ---- Capitalist Fleet Vehicle Card ---- */
+.ac-vehicle-card {
+  display: flex;
+  align-items: center;
+  gap: var(--ac-space-4);
+  padding: var(--ac-space-4);
+  background: var(--ac-white);
+  border: 1px solid var(--ac-pearl);
+  border-radius: var(--ac-radius);
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.ac-vehicle-card:hover {
+  box-shadow: var(--ac-shadow);
+  border-color: var(--ac-mercury);
+}
+
+.ac-vehicle-card.active {
+  border-left: 3px solid var(--ac-gold);
+}
+
+.ac-vehicle-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--ac-radius-sm);
+  background: var(--ac-ivory);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.ac-vehicle-info { flex: 1; }
+
+.ac-vehicle-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ac-blue-deep);
+  margin: 0 0 2px;
+}
+
+.ac-vehicle-detail {
+  font-size: 12px;
+  color: var(--ac-silver);
+  margin: 0;
+}
+
+/* ---- Capitalist Metric Row ---- */
+.ac-metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--ac-space-2) 0;
+  border-bottom: 1px solid var(--ac-pearl);
+}
+
+.ac-metric-row:last-child { border-bottom: none; }
+
+.ac-metric-label {
+  font-size: 12px;
+  color: var(--ac-silver);
+}
+
+.ac-metric-value {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: "SF Mono", ui-monospace, monospace;
+  color: var(--ac-blue-deep);
+}
+
+/* ---- Capitalist Tagline ---- */
+.ac-tagline {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--ac-silver);
+  text-align: center;
+  padding: var(--ac-space-4);
+  letter-spacing: 0.02em;
 }

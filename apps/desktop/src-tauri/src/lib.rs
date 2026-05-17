@@ -6,6 +6,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager, WindowEvent,
 };
+use tauri_plugin_shell::ShellExt;
 
 // ---------------------------------------------------------------------------
 // Tauri commands — called from the frontend via invoke()

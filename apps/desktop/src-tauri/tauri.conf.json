@@ -22,7 +22,6 @@
         "minHeight": 600,
         "decorations": false,
         "transparent": true,
-        "vibrancy": "under-window",
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "center": true
